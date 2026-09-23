@@ -1,49 +1,42 @@
-import os 
+import os
 
-from ament_index_python.packages import get_package_share_directory 
+from ament_index_python.packages import get_package_share_directory
 
-from launch import LaunchDescription 
+from launch import LaunchDescription
+from launch.actions import IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 
-from launch.actions import IncludeLaunchDescription 
+def generate_launch_description():
 
-from launch.launch_description_sources import PythonLaunchDescriptionSource 
+    pkg_dir = get_package_share_directory('reactive_navigation')
 
- 
+    world_file = os.path.join(pkg_dir, 'worlds', 'test_world')
 
-def generate_launch_description(): 
+    tb4_sim = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            os.path.join(
+                get_package_share_directory('turtlebot4_gz_bringup'),
+                'launch',
+                'turtlebot4_gz.launch.py'
+            )
+        ]),
 
-    pkg_dir = get_package_share_directory('reactive_navigation') 
+        launch_arguments={
+            'world': world_file,
 
-    world_file = os.path.join(pkg_dir, 'worlds', 'test_world.sdf') 
+            # Start in center of inner room
+            'x': '1.524',
+            'y': '3.810',
+            'z': '0.0',
 
- 
+            # Face east toward doorway
+            'yaw': '0.0',
 
-    # TurtleBot 4 simulation launch 
+            'rviz': 'false',
+        }.items()
+    )
 
-    tb4_sim = IncludeLaunchDescription( 
+    return LaunchDescription([
+        tb4_sim
+    ])
 
-        PythonLaunchDescriptionSource([ 
-
-            os.path.join(get_package_share_directory('turtlebot4_gz_bringup'), 'launch', 'turtlebot4_gz.launch.py') 
-
-        ]), 
-
-        launch_arguments={ 
-
-            'world': world_file, 
-
-            'slam': 'true', # Satisfies the background mapping requirement 
-
-        }.items() 
-
-    ) 
-
- 
-
-    return LaunchDescription([ 
-
-        tb4_sim 
-
-    ]) 
-
- 
