@@ -21,3 +21,9 @@ ros2 launch reactive_navigation project1_launch.py
 KNOWN ISSUES (sometimes, doesn't impact functionality):
 On open: bridge crash occurs
 On close ruby3.2 stops unexpectedly error
+
+
+
+
+Who's doing what functions:
+Trace - Escape symmetric obstacles and avoid asymmetric obstacles
