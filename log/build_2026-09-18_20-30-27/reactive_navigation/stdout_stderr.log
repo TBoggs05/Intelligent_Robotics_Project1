@@ -1,0 +1,19 @@
+running develop
+running egg_info
+writing reactive_navigation.egg-info/PKG-INFO
+writing dependency_links to reactive_navigation.egg-info/dependency_links.txt
+writing requirements to reactive_navigation.egg-info/requires.txt
+writing top-level names to reactive_navigation.egg-info/top_level.txt
+reading manifest file 'reactive_navigation.egg-info/SOURCES.txt'
+writing manifest file 'reactive_navigation.egg-info/SOURCES.txt'
+running build_ext
+Creating /home/card0181/ros2_ws/install/reactive_navigation/lib/python3.12/site-packages/reactive-navigation.egg-link (link to .)
+
+Installed /home/card0181/ros2_ws/build/reactive_navigation
+running symlink_data
+creating /home/card0181/ros2_ws/install/reactive_navigation/share/reactive_navigation/launch
+symbolically linking /home/card0181/ros2_ws/build/reactive_navigation/launch/project1_launch.py -> /home/card0181/ros2_ws/install/reactive_navigation/share/reactive_navigation/launch
+creating /home/card0181/ros2_ws/install/reactive_navigation/share/reactive_navigation/worlds
+symbolically linking /home/card0181/ros2_ws/build/reactive_navigation/worlds/project1.world -> /home/card0181/ros2_ws/install/reactive_navigation/share/reactive_navigation/worlds
+symbolically linking /home/card0181/ros2_ws/build/reactive_navigation/worlds/test_world.sdf -> /home/card0181/ros2_ws/install/reactive_navigation/share/reactive_navigation/worlds
+symbolically linking /home/card0181/ros2_ws/build/reactive_navigation/worlds/project1.sdf -> /home/card0181/ros2_ws/install/reactive_navigation/share/reactive_navigation/worlds

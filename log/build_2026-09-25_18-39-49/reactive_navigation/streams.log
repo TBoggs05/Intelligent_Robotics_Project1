@@ -1,0 +1,25 @@
+[0.626s] Invoking command in '/home/bogg0033/project1_ws/build/reactive_navigation': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com PYTHONPATH=/home/bogg0033/project1_ws/build/reactive_navigation/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/bogg0033/project1_ws/install/reactive_navigation/lib/python3.12/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /home/bogg0033/project1_ws/build/reactive_navigation/build --no-deps symlink_data
+[0.884s] running develop
+[1.042s] running egg_info
+[1.057s] writing reactive_navigation.egg-info/PKG-INFO
+[1.057s] writing dependency_links to reactive_navigation.egg-info/dependency_links.txt
+[1.057s] writing requirements to reactive_navigation.egg-info/requires.txt
+[1.057s] writing top-level names to reactive_navigation.egg-info/top_level.txt
+[1.091s] reading manifest file 'reactive_navigation.egg-info/SOURCES.txt'
+[1.091s] writing manifest file 'reactive_navigation.egg-info/SOURCES.txt'
+[1.114s] running build_ext
+[1.114s] Creating /home/bogg0033/project1_ws/install/reactive_navigation/lib/python3.12/site-packages/reactive-navigation.egg-link (link to .)
+[1.114s] 
+[1.115s] Installed /home/bogg0033/project1_ws/build/reactive_navigation
+[1.115s] running symlink_data
+[1.115s] creating /home/bogg0033/project1_ws/install/reactive_navigation/share/ament_index
+[1.115s] creating /home/bogg0033/project1_ws/install/reactive_navigation/share/ament_index/resource_index
+[1.115s] creating /home/bogg0033/project1_ws/install/reactive_navigation/share/ament_index/resource_index/packages
+[1.115s] symbolically linking /home/bogg0033/project1_ws/build/reactive_navigation/resource/reactive_navigation -> /home/bogg0033/project1_ws/install/reactive_navigation/share/ament_index/resource_index/packages
+[1.115s] symbolically linking /home/bogg0033/project1_ws/build/reactive_navigation/package.xml -> /home/bogg0033/project1_ws/install/reactive_navigation/share/reactive_navigation
+[1.115s] symbolically linking /home/bogg0033/project1_ws/build/reactive_navigation/launch/project1_launch.py -> /home/bogg0033/project1_ws/install/reactive_navigation/share/reactive_navigation/launch
+[1.115s] creating /home/bogg0033/project1_ws/install/reactive_navigation/share/reactive_navigation/worlds
+[1.115s] symbolically linking /home/bogg0033/project1_ws/build/reactive_navigation/worlds/project1.world -> /home/bogg0033/project1_ws/install/reactive_navigation/share/reactive_navigation/worlds
+[1.115s] symbolically linking /home/bogg0033/project1_ws/build/reactive_navigation/worlds/test_world.sdf -> /home/bogg0033/project1_ws/install/reactive_navigation/share/reactive_navigation/worlds
+[1.115s] symbolically linking /home/bogg0033/project1_ws/build/reactive_navigation/worlds/project1.sdf -> /home/bogg0033/project1_ws/install/reactive_navigation/share/reactive_navigation/worlds
+[1.134s] Invoked command in '/home/bogg0033/project1_ws/build/reactive_navigation' returned '0': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com PYTHONPATH=/home/bogg0033/project1_ws/build/reactive_navigation/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/bogg0033/project1_ws/install/reactive_navigation/lib/python3.12/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /home/bogg0033/project1_ws/build/reactive_navigation/build --no-deps symlink_data
