@@ -1,0 +1,22 @@
+[0.790s] Invoking command in '/home/card0181/ros2_ws/build/reactive_navigation': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com PYTHONPATH=/home/card0181/ros2_ws/build/reactive_navigation/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/card0181/ros2_ws/install/reactive_navigation/lib/python3.12/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /home/card0181/ros2_ws/build/reactive_navigation/build --no-deps symlink_data
+[1.121s] running develop
+[1.333s] running egg_info
+[1.333s] creating reactive_navigation.egg-info
+[1.354s] writing reactive_navigation.egg-info/PKG-INFO
+[1.354s] writing dependency_links to reactive_navigation.egg-info/dependency_links.txt
+[1.354s] writing requirements to reactive_navigation.egg-info/requires.txt
+[1.354s] writing top-level names to reactive_navigation.egg-info/top_level.txt
+[1.354s] writing manifest file 'reactive_navigation.egg-info/SOURCES.txt'
+[1.400s] reading manifest file 'reactive_navigation.egg-info/SOURCES.txt'
+[1.401s] writing manifest file 'reactive_navigation.egg-info/SOURCES.txt'
+[1.432s] running build_ext
+[1.432s] Creating /home/card0181/ros2_ws/install/reactive_navigation/lib/python3.12/site-packages/reactive-navigation.egg-link (link to .)
+[1.432s] 
+[1.432s] Installed /home/card0181/ros2_ws/build/reactive_navigation
+[1.432s] running symlink_data
+[1.432s] creating /home/card0181/ros2_ws/install/reactive_navigation/share/ament_index
+[1.432s] creating /home/card0181/ros2_ws/install/reactive_navigation/share/ament_index/resource_index
+[1.432s] creating /home/card0181/ros2_ws/install/reactive_navigation/share/ament_index/resource_index/packages
+[1.432s] symbolically linking /home/card0181/ros2_ws/build/reactive_navigation/resource/reactive_navigation -> /home/card0181/ros2_ws/install/reactive_navigation/share/ament_index/resource_index/packages
+[1.433s] symbolically linking /home/card0181/ros2_ws/build/reactive_navigation/package.xml -> /home/card0181/ros2_ws/install/reactive_navigation/share/reactive_navigation
+[1.458s] Invoked command in '/home/card0181/ros2_ws/build/reactive_navigation' returned '0': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com PYTHONPATH=/home/card0181/ros2_ws/build/reactive_navigation/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/card0181/ros2_ws/install/reactive_navigation/lib/python3.12/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /home/card0181/ros2_ws/build/reactive_navigation/build --no-deps symlink_data
