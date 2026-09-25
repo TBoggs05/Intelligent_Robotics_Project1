@@ -7,7 +7,7 @@ from robot_state import State
 #   obstacle avoidance, etc.
 #PROJECT1 - Intelligent Robotics
 
-class Robot:
+class RobotBrain:
     def __init__(self):
         print('test')
 
