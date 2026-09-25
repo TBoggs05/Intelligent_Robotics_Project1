@@ -1,0 +1,17 @@
+import rclpy
+from rclpy import node
+from geometry_msgs.msg import Twist
+import robot_state
+from robot_state import State
+from queue import Queue
+
+#Handles requests from all nodes. Acts as middleman before publishing back to robot.
+#Handles state management, request queue, and publishing to cmd_vel directly.
+class RobotBrain:
+    def __init__(self):
+        print('test')
+
+    self.keyboard_input = None
+    self.state = State.DRIVE_FORWARD #default state
+
+    
