@@ -25,5 +25,7 @@ On close ruby3.2 stops unexpectedly error
 
 
 
-Who's doing what functions:
-Trace - Escape symmetric obstacles and avoid asymmetric obstacles
+#PROJECT1 - Intelligent Robotics
+#Team - Trace Boggs, Luis Cardenas, Jackson Dunlap
+
+See architecture for setup (still needs to include mapping node)

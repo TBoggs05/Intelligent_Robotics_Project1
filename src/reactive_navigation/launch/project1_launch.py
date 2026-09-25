@@ -10,7 +10,11 @@ def generate_launch_description():
 
     pkg_dir = get_package_share_directory('reactive_navigation')
 
-    world_file = os.path.join(pkg_dir, 'worlds', 'test_world')
+    #world_file = 'os.path.join(pkg_dir, 'worlds', 'test_world')'
+    set__gz_resource_path = AppendEnvironmentVariable(
+        name = 'GZ_SIM_RESOURCE_PATH',
+        value=os.path.join(pkg_dir, 'worlds')
+    )
 
     tb4_sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
