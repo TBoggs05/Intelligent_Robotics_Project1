@@ -27,6 +27,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'keyboard_controller = reactive_navigation.keyboard_controller:main',
         ],
     },
 )
