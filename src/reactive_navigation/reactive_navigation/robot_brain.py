@@ -1,5 +1,4 @@
 import rclpy
-<<<<<<< HEAD
 from geometry_msgs.msg import Twist, TwistStamped
 from rclpy.node import Node
 from std_msgs.msg import Bool, Int32
@@ -16,38 +15,11 @@ class RobotBrain(Node):
 
     def __init__(self):
         super().__init__('robot_brain')
-=======
-from rclpy import Node #we are making this a node
-from geometry_msgs.msg import Twist #control robot
-import robot_state 
-from robot_state import State #Our custom state management class
-from queue import Queue
-from std_msgs.msg import String
-
-#Handles requests from all other nodes. Acts as middleman before publishing back to robot.
-#Handles state management, request queue, and publishing to cmd_vel directly.
-#Inherits from Node
-class RobotBrain(Node):
-    def __init__(self):
-        super().__init__('RobotBrain')
-        self.subscription = self.create_subscription(
-            String,
-            'topic',
-            self.listener_callback,
-            10
-        )
-        self.subscription #prevent unused variable warning
-
-    def listener_callback(self, msg):
-        self.get_logger().info('i heard: "%s"' % msg.data)
-
->>>>>>> 8cb65fa (started robot brain)
 
         # Default state: robot can drive forward unless a higher-priority behavior takes over.
         self.state = State.DRIVE_FORWARD
         self.keyboard_input = None
 
-<<<<<<< HEAD
         # --------------------------------------------------------------------
         # KEYBOARD CONTROLLER SECTION (SUBSCRIPTIONS AND PUBLISHERS)
         # --------------------------------------------------------------------
@@ -242,8 +214,3 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
-=======
-    
-
-    
->>>>>>> 8cb65fa (started robot brain)
