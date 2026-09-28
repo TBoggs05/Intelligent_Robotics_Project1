@@ -1,6 +1,7 @@
 import rclpy
 from geometry_msgs.msg import Twist
 from rclpy.node import Node
+from std_msgs.msg import Bool, Int32
 
 from reactive_navigation.robot_state import State
 
@@ -27,6 +28,25 @@ class RobotBrain(Node):
             'keyboard_input',
             self.keyboard_callback,
             10,
+        )
+        # --------------------------------------------------------------------
+        # RANDOM TURN SECTION
+        # --------------------------------------------------------------------
+        self.random_turn_active = False
+        self.random_turn_cmd = Twist()
+        
+        self.random_turn_active_sub = self.create_subscription(
+            Bool,
+            '/random_turn/active',
+            self.random_turn_active_callback,
+            10
+        )
+        
+        self.random_turn_cmd_sub = self.create_subscription(
+            Twist,
+            '/random_turn/cmd',
+            self.random_turn_cmd_callback,
+            10
         )
 
         # --------------------------------------------------------------------
@@ -79,16 +99,33 @@ class RobotBrain(Node):
     # ------------------------------------------------------------------------
     # RANDOM TURN SECTION
     # ------------------------------------------------------------------------
-    # TODO: Add odometry-based random turn behavior.
-    # Expected behavior:
-    #   - track forward travel distance
-    #   - trigger a random turn after a distance threshold
-    #   - set self.state = State.TURN_RANDOMLY when appropriate
+    def random_turn_active_callback(self, msg):
+        self.random_turn_active = msg.data
+        
+    def random_turn_cmd_callback(self, msg):
+        self.random_turn_cmd = msg   
 
     def handle_random_turn(self):
-        """Placeholder for random-turn logic."""
-        # TODO: implement random turn logic here.
-        return False
+        
+        if self.random_turn_active:
+            return self.random_turn_cmd
+        
+        return None
+    
+    # ================================================================
+    # STATE PUBLISHER
+    # ================================================================
+
+    def publish_state(self):
+        """
+        Publish the behavior currently selected by the Robot Brain.
+        """
+
+        msg = Int32()
+
+        msg.data = self.state.value
+
+        self.state_pub.publish(msg)
 
     # ------------------------------------------------------------------------
     # MAIN CONTROL LOOP
@@ -114,8 +151,18 @@ class RobotBrain(Node):
             self.publish_twist(keyboard_cmd)
             return
 
-        # TODO: Add placeholder checks for obstacle handling and random turns here.
+        # TODO: Add placeholder checks for obstacle handling.
         # For now, the robot falls back to a simple forward command.
+        
+        random_cmd = self.handle_random_turn()
+        
+        if random_cmd is not None:
+            self.state = State.TURN_RANDOMLY
+            self.publish_state()
+            self.publish_twist(
+                random_cmd
+            )
+            return
 
         default_msg = Twist()
         default_msg.linear.x = 0.5
