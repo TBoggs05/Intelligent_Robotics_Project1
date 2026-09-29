@@ -1,5 +1,5 @@
 import rclpy
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, TwistStamped
 from rclpy.node import Node
 from std_msgs.msg import Bool, Int32
 
@@ -60,7 +60,7 @@ class RobotBrain(Node):
         # --------------------------------------------------------------------
         # FINAL MOTOR OUTPUT (PUBLISHER)
         # --------------------------------------------------------------------
-        self.cmd_vel_pub = self.create_publisher(Twist, 'cmd_vel', 10)
+        self.cmd_vel_pub = self.create_publisher(TwistStamped, 'cmd_vel', 10)
 
     # ------------------------------------------------------------------------
     # KEYBOARD CONTROLLER SECTION
@@ -172,13 +172,29 @@ class RobotBrain(Node):
             )
             return
 
+        # Default behaviour (Drive forward)
+        self.state = State.DRIVE_FORWARD
+
+        self.publish_state()
+
         default_msg = Twist()
         default_msg.linear.x = 0.5
+        default_msg.angular.z = 0.0
+
         self.publish_twist(default_msg)
 
     def publish_twist(self, msg: Twist):
-        """Send the selected Twist to the robot."""
-        self.cmd_vel_pub.publish(msg)
+        """Convert internal Twist command to TwistStamped and send it"""
+
+        stamped_msg = TwistStamped()
+
+        stamped_msg.header.stamp = (
+            self.get_clock().now().to_msg()
+        )
+
+        stamped_msg.twist = msg
+
+        self.cmd_vel_pub.publish(stamped_msg)
 
 
 def main(args=None):
