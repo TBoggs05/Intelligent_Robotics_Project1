@@ -28,6 +28,7 @@ setup(
     entry_points={
         'console_scripts': [
             'keyboard_controller = reactive_navigation.keyboard_controller:main',
+			'robot_brain = reactive_navigation.robot_brain:main',
 			'random_turn = reactive_navigation.random_turn:main',
         ],
     },
