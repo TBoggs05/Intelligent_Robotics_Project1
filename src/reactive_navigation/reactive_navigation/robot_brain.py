@@ -48,6 +48,14 @@ class RobotBrain(Node):
             self.random_turn_cmd_callback,
             10
         )
+        # --------------------------------------------------------------------
+        # ROBOT STATE PUBLISHER
+        #--------------------------------------------------------------------
+        self.state_pub = self.create_publisher(
+            Int32,
+            '/robot_state',
+            10
+        )
 
         # --------------------------------------------------------------------
         # FINAL MOTOR OUTPUT (PUBLISHER)
