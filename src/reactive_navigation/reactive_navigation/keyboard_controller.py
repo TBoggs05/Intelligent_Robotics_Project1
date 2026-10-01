@@ -28,8 +28,12 @@ class KeyboardController(Node):
         # Initialize the ROS node. The node name is used in ROS logs and graph tools.
         super().__init__('keyboard_controller')
 
+        # Keep output topic configurable for easy remapping into robot_brain.
+        self.declare_parameter('output_topic', '/robot_brain/teleop_cmd')
+        self.output_topic = self.get_parameter('output_topic').value
+
         # Publish commands as a Twist so any consumer can read linear and angular motion.
-        self.publisher_ = self.create_publisher(Twist, 'keyboard_input', 10)
+        self.publisher_ = self.create_publisher(Twist, self.output_topic, 10)
 
         # Poll for key presses repeatedly at a fixed interval.
         self.timer_ = self.create_timer(0.05, self.timer_callback)

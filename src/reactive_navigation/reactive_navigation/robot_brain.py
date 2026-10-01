@@ -19,13 +19,20 @@ class RobotBrain(Node):
         # Default state: robot can drive forward unless a higher-priority behavior takes over.
         self.state = State.DRIVE_FORWARD
         self.keyboard_input = None
+        self.keyboard_input_stamp = None
+
+        # Teleop command handling is configurable so keyboard or external teleop can feed this node.
+        self.declare_parameter('teleop_topic', '/robot_brain/teleop_cmd')
+        self.declare_parameter('teleop_timeout_sec', 0.35)
+        self.teleop_topic = self.get_parameter('teleop_topic').value
+        self.teleop_timeout_sec = float(self.get_parameter('teleop_timeout_sec').value)
 
         # --------------------------------------------------------------------
         # KEYBOARD CONTROLLER SECTION (SUBSCRIPTIONS AND PUBLISHERS)
         # --------------------------------------------------------------------
         self.keyboard_sub = self.create_subscription(
             Twist,
-            'keyboard_input',
+            self.teleop_topic,
             self.keyboard_callback,
             10,
         )
@@ -66,15 +73,28 @@ class RobotBrain(Node):
     # KEYBOARD CONTROLLER SECTION
     # ------------------------------------------------------------------------
     def keyboard_callback(self, msg: Twist):
-        """Store the most recent keyboard command."""
+        """Store the most recent teleop command with a receive timestamp."""
         self.keyboard_input = msg
+        self.keyboard_input_stamp = self.get_clock().now()
         self.state = State.HUMAN_CONTROLLING
 
     def handle_keyboard_control(self):
-        """Return the active keyboard command when human control is active."""
-        if self.keyboard_input is not None:
-            return self.keyboard_input
-        return None
+        """Return the most recent teleop command while it is still fresh."""
+        if self.keyboard_input is None or self.keyboard_input_stamp is None:
+            return None
+
+        age_sec = (
+            self.get_clock().now() - self.keyboard_input_stamp
+        ).nanoseconds / 1e9
+
+        # Deadman timeout: prevents one key press from taking over forever.
+        if age_sec > self.teleop_timeout_sec:
+            self.keyboard_input = None
+            self.keyboard_input_stamp = None
+            return None
+
+        self.state = State.HUMAN_CONTROLLING
+        return self.keyboard_input
 
     # ------------------------------------------------------------------------
     # COLLISION DETECTION SECTION
@@ -156,6 +176,7 @@ class RobotBrain(Node):
 
         keyboard_cmd = self.handle_keyboard_control()
         if keyboard_cmd is not None:
+            self.publish_state()
             self.publish_twist(keyboard_cmd)
             return
 
