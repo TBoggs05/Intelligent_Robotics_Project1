@@ -20,6 +20,10 @@ class RobotBrain(Node):
         # Default state: robot can drive forward unless a higher-priority behavior takes over.
         self.state = State.DRIVE_FORWARD
         self.keyboard_input = None
+        # State management for Undock action
+        self.undock_client = ActionClient(self, Undock, '/undock')
+        self.undock_goal_sent = False
+        self.undock_finished = False
 
         # --------------------------------------------------------------------
         # KEYBOARD CONTROLLER SECTION (SUBSCRIPTIONS AND PUBLISHERS)
@@ -96,7 +100,7 @@ class RobotBrain(Node):
 
     def handle_collision(self, msg):
         self.state = State.COLLIDING
-
+        self.get_logger().warn('Collision Detected. Halting Movement and Overriding Program Priority.')
     # ------------------------------------------------------------------------
     # OBSTACLE DETECTION SECTION
     # ------------------------------------------------------------------------
@@ -156,6 +160,32 @@ class RobotBrain(Node):
             5. random turn
             6. default forward motion
         """
+        # --- ABSOLUTE PRIORITY: Initial Undock Sequence ---
+        if not self.undock_finished:
+            if not self.undock_goal_sent:
+                # Wait for the server, then send the undock goal
+                if self.undock_client.wait_for_server(timeout_sec=0.1):
+                    self.get_logger().info('Undock..')
+                    self.undock_goal_sent = True
+                    
+                    # Send the goal. The robot will autonomously drive off the dock.
+                    future = self.undock_client.send_goal_async(Undock.Goal())
+                    
+                    # Tell the script what to do when the robot finishes undocking
+                    def done_callback(fut):
+                        self.get_logger().info('Undocking finished!')
+                        self.undock_finished = True
+                    
+                    # We link the callback directly here to keep it simple
+                    future.add_done_callback(
+                        lambda fut: fut.result().get_result_async().add_done_callback(done_callback)
+                    )
+                else:
+                    self.get_logger().warn('Waiting for /undock action server to become active...', throttle_duration_sec=2.0)
+            
+            return # Block any other movements from overriding the undock sequence
+        # -----------------------------------------------------
+        #Program routine
         # Lower enum value means higher priority.
         if self.state == State.COLLIDING:
             halt_msg = Twist()
@@ -219,7 +249,8 @@ def main(args=None):
         pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok(): #fixes shutdown error. add to other nodes if error occurs
+            rclpy.shutdown()
 
 
 if __name__ == '__main__':
