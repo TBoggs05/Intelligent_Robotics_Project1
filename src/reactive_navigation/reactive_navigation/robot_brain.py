@@ -1,8 +1,9 @@
 import rclpy
 from geometry_msgs.msg import Twist, TwistStamped
 from rclpy.node import Node
-from std_msgs.msg import Bool, Int32
-
+from std_msgs.msg import Bool, Int32, String
+from irobot_create_msgs.action import Undock
+from rclpy.action import ActionClient
 from reactive_navigation.robot_state import State
 
 
@@ -49,6 +50,15 @@ class RobotBrain(Node):
             10
         )
         # --------------------------------------------------------------------
+        # COLLISION DETECTION SECTION
+        # --------------------------------------------------------------------
+        self.collision_detection_sub = self.create_subscription(
+            String,
+            'bump_notifier',
+            self.handle_collision,
+            10
+        )
+        # --------------------------------------------------------------------
         # ROBOT STATE PUBLISHER
         #--------------------------------------------------------------------
         self.state_pub = self.create_publisher(
@@ -56,7 +66,6 @@ class RobotBrain(Node):
             '/robot_state',
             10
         )
-
         # --------------------------------------------------------------------
         # FINAL MOTOR OUTPUT (PUBLISHER)
         # --------------------------------------------------------------------
@@ -85,10 +94,8 @@ class RobotBrain(Node):
     #   - set self.state = State.COLLIDING when a collision is detected
     #   - publish a zero Twist to stop the robot immediately
 
-    def handle_collision(self):
-        """Placeholder for collision logic."""
-        # TODO: implement collision detection and stop behavior here.
-        return False
+    def handle_collision(self, msg):
+        self.state = State.COLLIDING
 
     # ------------------------------------------------------------------------
     # OBSTACLE DETECTION SECTION
@@ -151,7 +158,10 @@ class RobotBrain(Node):
         """
         # Lower enum value means higher priority.
         if self.state == State.COLLIDING:
-            self.publish_twist(Twist())
+            halt_msg = Twist()
+            halt_msg.linear.x = 0.0
+            halt_msg.angular.z = 0.0
+            self.publish_twist(halt_msg)
             return
 
         keyboard_cmd = self.handle_keyboard_control()
