@@ -1,0 +1,18 @@
+[0.665s] Invoking command in '/home/bogg0033/project1_ws/build/reactive_navigation': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com PYTHONPATH=/home/bogg0033/project1_ws/build/reactive_navigation/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/bogg0033/project1_ws/install/reactive_navigation/lib/python3.12/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /home/bogg0033/project1_ws/build/reactive_navigation/build --no-deps symlink_data
+[0.939s] running develop
+[1.104s] running egg_info
+[1.120s] writing reactive_navigation.egg-info/PKG-INFO
+[1.120s] writing dependency_links to reactive_navigation.egg-info/dependency_links.txt
+[1.120s] writing entry points to reactive_navigation.egg-info/entry_points.txt
+[1.120s] writing requirements to reactive_navigation.egg-info/requires.txt
+[1.120s] writing top-level names to reactive_navigation.egg-info/top_level.txt
+[1.156s] reading manifest file 'reactive_navigation.egg-info/SOURCES.txt'
+[1.157s] writing manifest file 'reactive_navigation.egg-info/SOURCES.txt'
+[1.181s] running build_ext
+[1.181s] Creating /home/bogg0033/project1_ws/install/reactive_navigation/lib/python3.12/site-packages/reactive-navigation.egg-link (link to .)
+[1.181s] Installing keyboard_controller script to /home/bogg0033/project1_ws/install/reactive_navigation/lib/reactive_navigation
+[1.181s] 
+[1.181s] Installed /home/bogg0033/project1_ws/build/reactive_navigation
+[1.181s] running symlink_data
+[1.182s] error: can't copy '/home/bogg0033/project1_ws/build/reactive_navigation/worlds/project1.world': doesn't exist or not a regular file
+[1.199s] Invoked command in '/home/bogg0033/project1_ws/build/reactive_navigation' returned '1': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com PYTHONPATH=/home/bogg0033/project1_ws/build/reactive_navigation/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/bogg0033/project1_ws/install/reactive_navigation/lib/python3.12/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /home/bogg0033/project1_ws/build/reactive_navigation/build --no-deps symlink_data
