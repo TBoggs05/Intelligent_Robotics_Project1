@@ -18,8 +18,8 @@ setup(
     zip_safe=True,
     maintainer='card0181',
     maintainer_email='luis.f.cardenas-1@ou.edu',
-    description='TODO: Package description',
-    license='TODO: License declaration',
+    description='Project 1: Simulated Mobile Robot Navigation',
+    license='Apache-2.0',
     extras_require={
         'test': [
             'pytest',
@@ -30,6 +30,7 @@ setup(
             'keyboard_controller = reactive_navigation.keyboard_controller:main',
 			'robot_brain = reactive_navigation.robot_brain:main',
 			'random_turn = reactive_navigation.random_turn:main',
+           # 'obstacle_detection_node = reactive_navigation.obstacle_detection_node:main',
         ],
     },
 )
