@@ -9,16 +9,7 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
-
-    pkg_dir = get_package_share_directory(
-        'reactive_navigation'
-    )
-
-    world_file = os.path.join(
-        pkg_dir,
-        'worlds',
-        'test_world'
-    )
+    world_name = 'test_world'
 
     tb4_sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -32,7 +23,7 @@ def generate_launch_description():
         ),
 
         launch_arguments={
-            'world': world_file,
+            'world': world_name,
             
             # Start in center of inner room
             'x': '1.524',
