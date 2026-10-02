@@ -2,6 +2,7 @@ from enum import Enum
 
 #lower value => higher priority in state checking.
 class State(Enum):
+    UNDOCKING = 0
     COLLIDING = 1
     HUMAN_CONTROLLING = 2
     ESCAPE_SYMMETRIC = 3

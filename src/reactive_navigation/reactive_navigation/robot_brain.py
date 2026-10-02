@@ -18,7 +18,7 @@ class RobotBrain(Node):
         super().__init__('robot_brain')
 
         # Default state: robot can drive forward unless a higher-priority behavior takes over.
-        self.state = State.DRIVE_FORWARD
+        self.state = State.UNDOCKING
         self.keyboard_input = None
         # State management for Undock action
         self.undock_client = ActionClient(self, Undock, '/undock')
@@ -60,6 +60,16 @@ class RobotBrain(Node):
             String,
             'bump_notifier',
             self.handle_collision,
+            10
+        )
+        # --------------------------------------------------------------------
+        # OBSTACLE AVOIDANCE SECTION
+        # --------------------------------------------------------------------
+        self.escape_command = TwistStamped()
+        self.obstacle_avoidance_sub = self.create_subscription(
+            TwistStamped,
+            '/avoid_obstacles',
+            self.handle_obstacles,
             10
         )
         # --------------------------------------------------------------------
@@ -110,10 +120,11 @@ class RobotBrain(Node):
     #   - detect nearby obstacles
     #   - set the robot state to ESCAPE_SYMMETRIC or AVOID_ASYMMETRIC when appropriate
 
-    def handle_obstacles(self):
-        """Placeholder for obstacle logic."""
-        # TODO: implement obstacle avoidance logic here.
-        return False
+    def handle_obstacles(self, msg):
+        if(self.state.value > State.ESCAPE_SYMMETRIC.value): #if not in higher priority task, then escape
+            self.state = State.ESCAPE_SYMMETRIC
+            self.get_logger().warn('Obstacle ahead! Taking action.')
+            self.publish_twist_stamped(self.escape_command)
 
     # ------------------------------------------------------------------------
     # RANDOM TURN SECTION
@@ -201,7 +212,10 @@ class RobotBrain(Node):
 
         # TODO: Add placeholder checks for obstacle handling.
         # For now, the robot falls back to a simple forward command.
-        
+        if self.state == State.AVOID_ASYMMETRIC or self.state == State.ESCAPE_SYMMETRIC:
+            pass
+
+
         random_cmd = self.handle_random_turn()
         
         if random_cmd is not None:
@@ -213,15 +227,16 @@ class RobotBrain(Node):
             return
 
         # Default behaviour (Drive forward)
-        self.state = State.DRIVE_FORWARD
+        if self.state == State.DRIVE_FORWARD:
+        #self.state = State.DRIVE_FORWARD
 
-        self.publish_state()
+            self.publish_state()
 
-        default_msg = Twist()
-        default_msg.linear.x = 0.5
-        default_msg.angular.z = 0.0
+            default_msg = Twist()
+            default_msg.linear.x = 0.5
+            default_msg.angular.z = 0.0
 
-        self.publish_twist(default_msg)
+            self.publish_twist(default_msg)
 
     def publish_twist(self, msg: Twist):
         """Convert internal Twist command to TwistStamped and send it"""
@@ -235,6 +250,12 @@ class RobotBrain(Node):
         stamped_msg.twist = msg
 
         self.cmd_vel_pub.publish(stamped_msg)
+
+    def publish_twist_stamped(self, msg: TwistStamped):
+        
+            stamped_msg = TwistStamped()
+        
+            self.cmd_vel_pub.publish(stamped_msg)
 
 
 def main(args=None):

@@ -6,9 +6,8 @@ from rclpy.node import Node
 from geometry_msgs.msg import TwistStamped
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import LaserScan
-
 import tf2_ros
-
+from reactive_navigation.robot_state import State
 
 # ============================================================
 # Constants
@@ -27,7 +26,7 @@ OBSTACLE_DISTANCE = ONE_FOOT
 SYMMETRY_TOLERANCE = 0.15 * ONE_FOOT
 
 # Normal forward speed
-FORWARD_SPEED = 0.10
+FORWARD_SPEED = 0.80
 
 # Reflexive avoidance turn speed
 AVOID_TURN_SPEED = 2.0
@@ -49,8 +48,8 @@ class ObstacleDetectionNode(Node):
         # --------------------------------------------------------
 
         self.publisher = self.create_publisher(
-            TwistStamped,
-            '/cmd_vel',
+            (TwistStamped),
+            '/avoid_obstacles',
             10
         )
 
@@ -428,12 +427,12 @@ class ObstacleDetectionNode(Node):
         # No obstacle within 1 foot.
         # --------------------------------------------------------
 
-        command = self.create_command(
-            linear_x=FORWARD_SPEED,
-            angular_z=0.0
-        )
+        #command = self.create_command(
+        #    linear_x=FORWARD_SPEED,
+        #   angular_z=0.0
+        #)
 
-        self.publisher.publish(command)
+        #self.publisher.publish(command)
 
     # ============================================================
     # Start ESCAPE behavior
@@ -495,7 +494,7 @@ class ObstacleDetectionNode(Node):
             angular_z=0.0
         )
 
-        self.publisher.publish(command)
+        self.publisher.publish(command) #return to default state.
 
         self.state = 'NORMAL'
         self.escape_rotation = 0.0
@@ -540,15 +539,16 @@ def main(args=None):
     finally:
 
         # Stop the robot
-        stop_command = node.create_command(
-            linear_x=0.0,
-            angular_z=0.0
-        )
+        #stop_command = node.create_command(
+        #    linear_x=0.0,
+        #    angular_z=0.0
+        #)
 
-        node.publisher.publish(stop_command)
+        #node.publisher.publish(stop_command)
 
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == '__main__':
