@@ -15,6 +15,12 @@ colcon build --symlink-install
 ros2 launch reactive_navigation project1_launch.py
 
 
+#BRIDGE COMMAND FOR /SCAN#
+ros2 run ros_gz_bridge parameter_bridge \
+  '/world/empty/model/turtlebot4/link/rplidar_link/sensor/rplidar/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan' \
+  --ros-args \
+  -r '/world/empty/model/turtlebot4/link/rplidar_link/sensor/rplidar/scan:=/scan'
+
 
 
 
