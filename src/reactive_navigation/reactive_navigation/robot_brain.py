@@ -85,6 +85,20 @@ class RobotBrain(Node):
         # --------------------------------------------------------------------
         self.cmd_vel_pub = self.create_publisher(TwistStamped, 'cmd_vel', 10)
 
+    #--------------------------------
+    #FUNCTION FOR EVAULATION TWISTS
+    #---------------------------------
+    def is_twist_zero(msg, tolerance=1e-6):
+        t = msg.twist
+        return (
+            abs(t.linear.x) < tolerance
+            and abs(t.linear.y) < tolerance
+            and abs(t.linear.z) < tolerance
+            and abs(t.angular.x) < tolerance
+            and abs(t.angular.y) < tolerance
+            and abs(t.angular.z) < tolerance
+        )
+
     # ------------------------------------------------------------------------
     # KEYBOARD CONTROLLER SECTION
     # ------------------------------------------------------------------------
@@ -121,7 +135,7 @@ class RobotBrain(Node):
     #   - set the robot state to ESCAPE_SYMMETRIC or AVOID_ASYMMETRIC when appropriate
 
     def handle_obstacles(self, msg):
-        if(self.state.value > State.ESCAPE_SYMMETRIC.value): #if not in higher priority task, then escape
+        if(self.state.value >= State.ESCAPE_SYMMETRIC.value): #if not in higher priority task, then escape
             self.state = State.ESCAPE_SYMMETRIC
             self.get_logger().warn('Obstacle ahead! Taking action.')
             self.publish_twist_stamped(self.escape_command)
@@ -185,6 +199,7 @@ class RobotBrain(Node):
                     # Tell the script what to do when the robot finishes undocking
                     def done_callback(fut):
                         self.get_logger().info('Undocking finished!')
+                        self.state = State.DRIVE_FORWARD #docking finished. Go forward and start main routine
                         self.undock_finished = True
                     
                     # We link the callback directly here to keep it simple

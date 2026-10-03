@@ -49,7 +49,8 @@ class ObstacleDetectionNode(Node):
 
         self.publisher = self.create_publisher(
             (TwistStamped),
-            '/avoid_obstacles',
+            #'/avoid_obstacles',
+            'cmd_vel',
             10
         )
 
@@ -419,7 +420,7 @@ class ObstacleDetectionNode(Node):
                     f'-> LEFT'
                 )
 
-            self.publisher.publish(command)
+            self.publisher.publish(command) #AVOID
             return
 
         # --------------------------------------------------------
@@ -427,12 +428,12 @@ class ObstacleDetectionNode(Node):
         # No obstacle within 1 foot.
         # --------------------------------------------------------
 
-        #command = self.create_command(
-        #    linear_x=FORWARD_SPEED,
-        #   angular_z=0.0
-        #)
+        command = self.create_command(
+           linear_x=FORWARD_SPEED,
+           angular_z=0.0
+        )
 
-        #self.publisher.publish(command)
+        self.publisher.publish(command)
 
     # ============================================================
     # Start ESCAPE behavior
@@ -481,7 +482,7 @@ class ObstacleDetectionNode(Node):
                 angular_z=-ESCAPE_TURN_SPEED
             )
 
-            self.publisher.publish(command)
+            self.publisher.publish(command) #ESCAPE
 
             return
 
@@ -494,7 +495,7 @@ class ObstacleDetectionNode(Node):
             angular_z=0.0
         )
 
-        self.publisher.publish(command) #return to default state.
+        self.publisher.publish(command) #END ESCAPE
 
         self.state = 'NORMAL'
         self.escape_rotation = 0.0
@@ -539,10 +540,10 @@ def main(args=None):
     finally:
 
         # Stop the robot
-        #stop_command = node.create_command(
-        #    linear_x=0.0,
-        #    angular_z=0.0
-        #)
+        stop_command = node.create_command(
+          linear_x=0.0,
+          angular_z=0.0
+        )
 
         #node.publisher.publish(stop_command)
 
