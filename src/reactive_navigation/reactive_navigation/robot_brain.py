@@ -154,7 +154,7 @@ class RobotBrain(Node):
     # COLLISION DETECTION SECTION
     # ------------------------------------------------------------------------
     def handle_collision(self, msg):
-        if(self.state.value > State.COLLIDING.value):
+       # if(self.state.value >= State.COLLIDING.value): #higher value means low prio, so overtake.
             self.state = State.COLLIDING
             self.get_logger().warn('Collision Detected. Halting Movement and Overriding Program Priority.')
     
@@ -233,7 +233,7 @@ class RobotBrain(Node):
 
         msg.twist.linear.x = 0.0
         msg.twist.angular.z = 0.0
-
+        self.get_logger().info('Stopping the robot!')
         self.cmd_vel_pub.publish(msg)
     def undock(self):
         if self.undock_finished == False:
@@ -253,7 +253,7 @@ class RobotBrain(Node):
             # Configuration
             # ============================================================
 
-            BACKUP_DISTANCE = 0.30       # meters
+            BACKUP_DISTANCE = 0.20       # meters
             BACKUP_SPEED = 0.10          # m/s
 
             TURN_ANGLE = math.pi         # 180 degrees
@@ -396,10 +396,7 @@ class RobotBrain(Node):
         self.undock() #undock before beginning true routine; 
 
         if self.state == State.COLLIDING:
-            halt_msg = Twist()
-            halt_msg.linear.x = 0.0
-            halt_msg.angular.z = 0.0
-            self.publish_twist(halt_msg)
+            self.stop_robot()
             return
 
         elif self.state == State.HUMAN_CONTROLLING:
@@ -442,9 +439,7 @@ def main(args=None):
     node = RobotBrain()
 
     try:
-        while rclpy.ok():
-            node.update()
-            rclpy.spin_once(node, timeout_sec=0.05)
+        rclpy.spin(node)
     except KeyboardInterrupt:
         pass
     finally:

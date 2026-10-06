@@ -40,6 +40,7 @@ def main(args=None):
     #spin up node 
     try:
             rclpy.spin(node)
+            node.get_logger().info('COLLISION NODE IS SPUN UP!')
     except KeyboardInterrupt:
             pass
     finally:

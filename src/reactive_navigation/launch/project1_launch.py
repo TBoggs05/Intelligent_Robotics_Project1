@@ -63,17 +63,25 @@ def generate_launch_description():
             name='obstacle_detection',
             output='screen'
     )
-    collision_detection = Node(
+    collision_detection= Node(
                 package='reactive_navigation',
                 executable='collision_detection',
                 name='collision_detection',
                 output='screen'
     )
+    keyboard_controller = Node(
+            package = 'reactive_navigation',
+            executable='keyboard_controller',
+            name ='keyboard_controller',
+            output='screen'
+    )
 
     return LaunchDescription([
-        tb4_sim,
+        #robot_brain,
+        #obstacle_detection,
+        #collision_detection,
+        #keyboard_controller,
         rplidar_bridge,  # Added bridge to the launch description
-        obstacle_detection,
-        collision_detection,
-        robot_brain,
+        tb4_sim,
+        
     ])
