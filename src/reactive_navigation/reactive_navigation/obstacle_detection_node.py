@@ -1,42 +1,33 @@
+
+#imports
 import math
 
 import rclpy
 from rclpy.node import Node
 
-from geometry_msgs.msg import TwistStamped
+from geometry_msgs.msg import TwistStamped, Twist
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import LaserScan
 import tf2_ros
 from reactive_navigation.robot_state import State
 
-# ============================================================
-# Constants
-# ============================================================
 
 ONE_FOOT = 0.3048
-
 # Look ±30 degrees from the robot's actual front
 FRONT_ANGLE = 35.0
-
 # Obstacles within 1 foot
 OBSTACLE_DISTANCE = ONE_FOOT
-
 # Difference between left/right obstacles that is considered
 # "roughly symmetric"
 SYMMETRY_TOLERANCE = 0.15 * ONE_FOOT
-
 # Normal forward speed
 FORWARD_SPEED = 0.80
-
 # Reflexive avoidance turn speed
 AVOID_TURN_SPEED = 2.0
-
 # Fixed escape turn speed
 ESCAPE_TURN_SPEED = 1.5
-
 # Escape approximately 180 degrees
 ESCAPE_ANGLE = math.radians(180.0)
-
 
 class ObstacleDetectionNode(Node):
 
@@ -46,34 +37,33 @@ class ObstacleDetectionNode(Node):
         # --------------------------------------------------------
         # Publisher
         # --------------------------------------------------------
-
         self.publisher = self.create_publisher(
-            (TwistStamped),
-            #'/avoid_obstacles',
-            'cmd_vel',
+            (Twist),
+            '/avoid_obstacles',
             10
         )
-
+        self.publisher = self.create_publisher(
+            (bool),
+            '/avoid_stop',
+            10
+                )
         # --------------------------------------------------------
         # Subscribers
         # --------------------------------------------------------
-
         self.create_subscription(
             LaserScan,
             '/scan',
             self.lidar_callback,
             10
         )
-
         self.create_subscription(
             Odometry,
             '/odom',
             self.odom_callback,
             10
         )
-
         # --------------------------------------------------------
-        # TF
+        # TF (transform data)
         # --------------------------------------------------------
 
         self.tf_buffer = tf2_ros.Buffer()
@@ -106,23 +96,15 @@ class ObstacleDetectionNode(Node):
             'Obstacle detection node started.'
         )
 
-    # ============================================================
-    # Create TwistStamped command
-    # ============================================================
-
     def create_command(
         self,
         linear_x=0.0,
         angular_z=0.0
     ):
+        """Create a Twist command to be sent back to the robot brain.
+        (Note: It will be converted to TwistStamped in robot_brain)"""
 
-        command = TwistStamped()
-
-        command.header.stamp = (
-            self.get_clock().now().to_msg()
-        )
-
-        command.header.frame_id = 'base_link'
+        command = Twist()
 
         command.twist.linear.x = linear_x
         command.twist.angular.z = angular_z
@@ -132,10 +114,9 @@ class ObstacleDetectionNode(Node):
     # ============================================================
     # Odometry callback
     # ============================================================
-
     def odom_callback(self, message):
-
-        q = message.pose.pose.orientation
+        """When odom publishes, we grab relevant orientation values and feed back to class variables"""
+        q = message.pose.pose.orientation #grabs the x, y, z, w values
 
         # Quaternion -> yaw
         sin_yaw = 2.0 * (
@@ -165,6 +146,7 @@ class ObstacleDetectionNode(Node):
             yaw - self.previous_yaw
         )
 
+        #update class yaw values with calculated values read from odom
         self.current_yaw = yaw
         self.previous_yaw = yaw
 
@@ -181,7 +163,6 @@ class ObstacleDetectionNode(Node):
     # ============================================================
     # LiDAR callback
     # ============================================================
-
     def lidar_callback(self, message):
 
         # --------------------------------------------------------
@@ -433,12 +414,11 @@ class ObstacleDetectionNode(Node):
            angular_z=0.0
         )
 
-        self.publisher.publish(command)
+        self.publisher.publish(True)
 
     # ============================================================
     # Start ESCAPE behavior
     # ============================================================
-
     def start_escape(self):
 
         if self.current_yaw is None:
@@ -467,7 +447,6 @@ class ObstacleDetectionNode(Node):
     # ============================================================
     # Perform ESCAPE behavior
     # ============================================================
-
     def perform_escape(self):
 
         # --------------------------------------------------------
@@ -495,7 +474,7 @@ class ObstacleDetectionNode(Node):
             angular_z=0.0
         )
 
-        self.publisher.publish(command) #END ESCAPE
+        self.publisher.publish(True) #END ESCAPE
 
         self.state = 'NORMAL'
         self.escape_rotation = 0.0
@@ -508,7 +487,6 @@ class ObstacleDetectionNode(Node):
     # ============================================================
     # Normalize an angle to [-pi, pi]
     # ============================================================
-
     @staticmethod
     def normalize_angle(angle):
 
@@ -520,10 +498,6 @@ class ObstacleDetectionNode(Node):
 
         return angle
 
-
-# ================================================================
-# Main
-# ================================================================
 
 def main(args=None):
 
@@ -538,15 +512,6 @@ def main(args=None):
         pass
 
     finally:
-
-        # Stop the robot
-        stop_command = node.create_command(
-          linear_x=0.0,
-          angular_z=0.0
-        )
-
-        #node.publisher.publish(stop_command)
-
         node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()
