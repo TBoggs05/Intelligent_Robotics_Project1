@@ -88,12 +88,12 @@ def generate_launch_description():
             parameters=[{'use_simtime=true'}]
     )
     return LaunchDescription([
+        rplidar_bridge,  # Added bridge to the launch description
+        tb4_sim,
         collision_detection,
         obstacle_detection,
         #keyboard_controller,
         #random_turn,
         robot_brain,
-        rplidar_bridge,  # Added bridge to the launch description
-        tb4_sim,
         
     ])
