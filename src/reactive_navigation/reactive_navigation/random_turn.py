@@ -21,7 +21,7 @@ class RandomTurn(Node):
         self.turn_speed = 0.6  # Turning speed
 
         # Current Robot Brain state
-        self.current_state = State.DRIVE_FORWARD
+        self.current_state = None
 
         # Odometry tracking
         self.last_x = None
