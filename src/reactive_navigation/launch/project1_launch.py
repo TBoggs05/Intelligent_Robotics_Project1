@@ -48,38 +48,50 @@ def generate_launch_description():
         ],
         remappings=[
             ('/world/test_world/model/turtlebot4/link/rplidar_link/sensor/rplidar/scan', '/scan')
-        ]
+        ],
+        parameters=[{'use_simtime=true'}]
     )
     #Add robot brain node
     robot_brain = Node(
         package='reactive_navigation',
         executable='robot_brain',
         name='robot_brain',
-        output='screen'
+        output='screen',
+        parameters=[{'use_simtime=true'}]
     )
     obstacle_detection = Node(
             package='reactive_navigation',
             executable='obstacle_detection',
             name='obstacle_detection',
-            output='screen'
+            output='screen',
+            parameters=[{'use_simtime=true'}]
     )
     collision_detection= Node(
                 package='reactive_navigation',
                 executable='collision_detection',
                 name='collision_detection',
-                output='screen'
+                output='screen',
+                parameters=[{'use_simtime=true'}]
     )
     keyboard_controller = Node(
             package = 'reactive_navigation',
             executable='keyboard_controller',
             name ='keyboard_controller',
-            output='screen'
+            output='screen',
+            parameters=[{'use_simtime=true'}]
     )
-
+    random_turn = Node(
+            package = 'reactive_navigation',
+            executable='random_turn',
+            name ='random_turn',
+            output='screen',
+            parameters=[{'use_simtime=true'}]
+    )
     return LaunchDescription([
         collision_detection,
-        #obstacle_detection,
+        obstacle_detection,
         #keyboard_controller,
+        #random_turn,
         robot_brain,
         rplidar_bridge,  # Added bridge to the launch description
         tb4_sim,

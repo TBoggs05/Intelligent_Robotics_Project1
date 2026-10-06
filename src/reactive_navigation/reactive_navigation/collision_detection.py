@@ -29,9 +29,10 @@ class CollisionDetection(Node):
 
     #called to handle bumper contact. Will prime message to be sent to robot brain for handling.
     def contact_alert_callback(self, msg):
-          msg = String()
-          msg.data = 'bump!'
-          self.publisher_.publish(msg)
+          if len(msg.contacts) > 0:
+            send_msg = String()
+            send_msg.data = 'bump!'
+            self.publisher_.publish(send_msg)
 
 def main(args=None):
     rclpy.init(args = args)

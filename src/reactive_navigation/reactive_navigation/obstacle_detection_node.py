@@ -16,8 +16,8 @@ from reactive_navigation.robot_state import State
 ONE_FOOT = 0.3048
 # Look ±30 degrees from the robot's actual front
 FRONT_ANGLE = 35.0
-# Obstacles within 1 foot
-OBSTACLE_DISTANCE = ONE_FOOT
+# Obstacles within 1 foot, factoring in diam of robot being about 13 inches
+OBSTACLE_DISTANCE = ONE_FOOT * 2.11
 # Difference between left/right obstacles that is considered
 # "roughly symmetric"
 SYMMETRY_TOLERANCE = 0.15 * ONE_FOOT

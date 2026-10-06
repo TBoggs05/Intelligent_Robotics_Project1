@@ -167,9 +167,10 @@ class RobotBrain(Node):
             self.obstacle_command = msg
 
     def handle_obstacle_stop(self, msg):
-        self.get_logger().info('Stop avoidance/escape behavior')
-        self.stop_robot()
+        #self.get_logger().info('Stop avoidance/escape behavior')
+        
         if(msg.data == True and (self.state == State.ESCAPE_SYMMETRIC or self.state == State.AVOID_ASYMMETRIC)):
+            self.stop_robot()
             self.state = State.DRIVE_FORWARD #return to default state after escape finishes
 
 
@@ -338,7 +339,8 @@ class RobotBrain(Node):
                 return
 
             # ============================================================
-            # Turn for 2 seconds
+            # Turn for 4 seconds //This can be replaced with angle, but it was breaking
+            # due to some issue that we dont have time to fix so this works for now
             # ============================================================
 
             if self.manual_undock_phase == "TURN":
@@ -353,10 +355,10 @@ class RobotBrain(Node):
                 ).nanoseconds / 1e9
 
                 # --------------------------------------------------------
-                # Keep turning for 2 seconds
+                # Keep turning for 4 seconds
                 # --------------------------------------------------------
 
-                if elapsed < 2.0:
+                if elapsed < 4.0:
 
                     msg = TwistStamped()
 
