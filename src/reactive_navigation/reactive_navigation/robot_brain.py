@@ -176,6 +176,12 @@ class RobotBrain(Node):
     # ------------------------------------------------------------------------
     def random_turn_active_callback(self, msg):
         self.random_turn_active = msg.data
+        if self.random_turn_active:
+            if self.state.value > State.TURN_RANDOMLY.value:
+                self.state = State.TURN_RANDOMLY
+        else:
+            if self.state == State.TURN_RANDOMLY:
+                self.state = State.DRIVE_FORWARD
         
     def random_turn_cmd_callback(self, msg):
         self.random_turn_cmd = msg   
@@ -412,7 +418,10 @@ class RobotBrain(Node):
            # self.publish_twist(self.obstacle_command)
             pass
         elif self.state == State.TURN_RANDOMLY:
-            pass
+            random_cmd = self.handle_random_turn()
+            if random_cmd is not None:
+                self.publish_twist(random_cmd)
+                return
 
         # Default behaviour (Drive forward)
         if self.state == State.DRIVE_FORWARD:
@@ -421,18 +430,6 @@ class RobotBrain(Node):
             default_msg.linear.x = 0.5
             default_msg.angular.z = 0.0
             self.publish_twist(default_msg)
-
-        #Current Random Turn Code (NEEDS TO BE REFACTORED INTO PRIORITY SCHEME)
-        random_cmd = self.handle_random_turn() 
-        
-        if random_cmd is not None: #if a random_command is due:
-            self.state = State.TURN_RANDOMLY    #update state
-            self.publish_state()                #publish state
-            self.publish_twist(                 #send random_turn command       
-                random_cmd
-            )
-            return
-
         
 def main(args=None):
     rclpy.init(args=args)
