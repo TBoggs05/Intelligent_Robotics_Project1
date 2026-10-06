@@ -44,10 +44,10 @@ def generate_launch_description():
         name='rplidar_bridge',
         output='screen',
         arguments=[
-            '/world/empty/model/turtlebot4/link/rplidar_link/sensor/rplidar/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan'
+            '/world/test_world/model/turtlebot4/link/rplidar_link/sensor/rplidar/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan'
         ],
         remappings=[
-            ('/world/empty/model/turtlebot4/link/rplidar_link/sensor/rplidar/scan', '/scan')
+            ('/world/test_world/model/turtlebot4/link/rplidar_link/sensor/rplidar/scan', '/scan')
         ]
     )
     #Add robot brain node
@@ -77,10 +77,10 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        #robot_brain,
+        collision_detection,
         #obstacle_detection,
-        #collision_detection,
         #keyboard_controller,
+        robot_brain,
         rplidar_bridge,  # Added bridge to the launch description
         tb4_sim,
         

@@ -15,7 +15,7 @@ class CollisionDetection(Node):
 
     def __init__(self):
         super().__init__('collision_detection')
-
+        self.get_logger().info('CollisionDetection Node Instantiated!')
         #subscriber to read bumper data from /bumper_contact
         self.subscription = self.create_subscription(
             Contacts,
@@ -39,8 +39,8 @@ def main(args=None):
     node = CollisionDetection()
     #spin up node 
     try:
+            node.get_logger().info('CollisionDetection Node Spun Up!')
             rclpy.spin(node)
-            node.get_logger().info('COLLISION NODE IS SPUN UP!')
     except KeyboardInterrupt:
             pass
     finally:

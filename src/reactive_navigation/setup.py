@@ -31,7 +31,7 @@ setup(
 			'robot_brain = reactive_navigation.robot_brain:main',
 			'random_turn = reactive_navigation.random_turn:main',
             'obstacle_detection = reactive_navigation.obstacle_detection_node:main',
-            'collision_detection = reactive_navigation.collision_detection:main'
+            'collision_detection = reactive_navigation.collision_detection:main',
         ],
     },
 )

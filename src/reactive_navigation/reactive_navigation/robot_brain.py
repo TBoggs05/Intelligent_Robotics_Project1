@@ -83,7 +83,7 @@ class RobotBrain(Node):
             10
         )
         self.obstacle_avoidance_end_sub = self.create_subscription(
-                    Twist,
+                    Bool,
                     '/avoid_stop',
                     self.handle_obstacle_stop,
                     10
@@ -167,7 +167,9 @@ class RobotBrain(Node):
             self.obstacle_command = msg
 
     def handle_obstacle_stop(self, msg):
-        if(msg == True and (self.state == State.ESCAPE_SYMMETRIC or self.state == State.AVOID_ASYMMETRIC)):
+        self.get_logger().info('Stop avoidance/escape behavior')
+        self.stop_robot()
+        if(msg.data == True and (self.state == State.ESCAPE_SYMMETRIC or self.state == State.AVOID_ASYMMETRIC)):
             self.state = State.DRIVE_FORWARD #return to default state after escape finishes
 
 
@@ -387,6 +389,7 @@ class RobotBrain(Node):
     # MAIN CONTROL LOOP
     # ------------------------------------------------------------------------
     def update(self):
+        self.get_logger().info("CURRENT STATE: " + self.state.name)
         """Apply the current priority logic for keyboard-driven behavior.
 
         Priority order should eventually be:
@@ -412,11 +415,9 @@ class RobotBrain(Node):
                 return
 
         elif self.state == State.AVOID_ASYMMETRIC:
-          #  self.publish_twist(self.obstacle_command)
-            pass
+            self.publish_twist(self.obstacle_command)
         elif self.state == State.ESCAPE_SYMMETRIC:
-           # self.publish_twist(self.obstacle_command)
-            pass
+            self.publish_twist(self.obstacle_command)
         elif self.state == State.TURN_RANDOMLY:
             random_cmd = self.handle_random_turn()
             if random_cmd is not None:
@@ -436,7 +437,9 @@ def main(args=None):
     node = RobotBrain()
 
     try:
-        rclpy.spin(node)
+        while rclpy.ok():
+            node.update()
+            rclpy.spin_once(node, timeout_sec=0.05)
     except KeyboardInterrupt:
         pass
     finally:

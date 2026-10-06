@@ -8,6 +8,7 @@ from rclpy.node import Node
 from geometry_msgs.msg import TwistStamped, Twist
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import LaserScan
+from std_msgs.msg import Bool, Int32
 import tf2_ros
 from reactive_navigation.robot_state import State
 
@@ -42,8 +43,8 @@ class ObstacleDetectionNode(Node):
             '/avoid_obstacles',
             10
         )
-        self.publisher = self.create_publisher(
-            (bool),
+        self.publisher_bool = self.create_publisher(
+            (Bool),
             '/avoid_stop',
             10
                 )
@@ -106,8 +107,8 @@ class ObstacleDetectionNode(Node):
 
         command = Twist()
 
-        command.twist.linear.x = linear_x
-        command.twist.angular.z = angular_z
+        command.linear.x = linear_x
+        command.angular.z = angular_z
 
         return command
 
@@ -413,8 +414,9 @@ class ObstacleDetectionNode(Node):
            linear_x=FORWARD_SPEED,
            angular_z=0.0
         )
-
-        self.publisher.publish(True)
+        msg = Bool()
+        msg.data = True
+        self.publisher_bool.publish(msg)
 
     # ============================================================
     # Start ESCAPE behavior
@@ -473,8 +475,9 @@ class ObstacleDetectionNode(Node):
             linear_x=0.0,
             angular_z=0.0
         )
-
-        self.publisher.publish(True) #END ESCAPE
+        msg = Bool()
+        msg.data = True
+        self.publisher_bool.publish(msg) #END ESCAPE
 
         self.state = 'NORMAL'
         self.escape_rotation = 0.0
