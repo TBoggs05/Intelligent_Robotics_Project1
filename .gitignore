@@ -49,3 +49,12 @@ qtcreator-*
 
 # Catkin custom files
 CATKIN_IGNORE
+
+# Colcon & ROS 2 Jazzy workspace build directories
+log/
+install/
+.pytest_cache/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/

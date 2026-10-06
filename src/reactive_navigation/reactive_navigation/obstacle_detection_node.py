@@ -1,43 +1,36 @@
+
+#imports
 import math
+import random
 
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import qos_profile_sensor_data
 
-from geometry_msgs.msg import TwistStamped
+from geometry_msgs.msg import TwistStamped, Twist
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import LaserScan
-
+from std_msgs.msg import Bool, Int32
 import tf2_ros
+from reactive_navigation.robot_state import State
 
-
-# ============================================================
-# Constants
-# ============================================================
 
 ONE_FOOT = 0.3048
-
 # Look ±30 degrees from the robot's actual front
-FRONT_ANGLE = 35.0
-
-# Obstacles within 1 foot
-OBSTACLE_DISTANCE = ONE_FOOT
-
+FRONT_ANGLE = 30.0
+# Obstacles within 1 foot, factoring in diam of robot being about 13 inches
+OBSTACLE_DISTANCE = ONE_FOOT * 2.11
 # Difference between left/right obstacles that is considered
 # "roughly symmetric"
 SYMMETRY_TOLERANCE = 0.15 * ONE_FOOT
-
 # Normal forward speed
-FORWARD_SPEED = 0.10
-
+FORWARD_SPEED = 0.80
 # Reflexive avoidance turn speed
 AVOID_TURN_SPEED = 2.0
-
 # Fixed escape turn speed
 ESCAPE_TURN_SPEED = 1.5
-
 # Escape approximately 180 degrees
 ESCAPE_ANGLE = math.radians(180.0)
-
 
 class ObstacleDetectionNode(Node):
 
@@ -47,33 +40,33 @@ class ObstacleDetectionNode(Node):
         # --------------------------------------------------------
         # Publisher
         # --------------------------------------------------------
-
         self.publisher = self.create_publisher(
-            TwistStamped,
-            '/cmd_vel',
+            (Twist),
+            '/avoid_obstacles',
             10
         )
-
+        self.publisher_bool = self.create_publisher(
+            (Bool),
+            '/avoid_stop',
+            10
+                )
         # --------------------------------------------------------
         # Subscribers
         # --------------------------------------------------------
-
         self.create_subscription(
             LaserScan,
             '/scan',
             self.lidar_callback,
-            10
+            qos_profile_sensor_data
         )
-
         self.create_subscription(
             Odometry,
             '/odom',
             self.odom_callback,
             10
         )
-
         # --------------------------------------------------------
-        # TF
+        # TF (transform data)
         # --------------------------------------------------------
 
         self.tf_buffer = tf2_ros.Buffer()
@@ -106,36 +99,27 @@ class ObstacleDetectionNode(Node):
             'Obstacle detection node started.'
         )
 
-    # ============================================================
-    # Create TwistStamped command
-    # ============================================================
-
     def create_command(
         self,
         linear_x=0.0,
         angular_z=0.0
     ):
+        """Create a Twist command to be sent back to the robot brain.
+        (Note: It will be converted to TwistStamped in robot_brain)"""
 
-        command = TwistStamped()
+        command = Twist()
 
-        command.header.stamp = (
-            self.get_clock().now().to_msg()
-        )
-
-        command.header.frame_id = 'base_link'
-
-        command.twist.linear.x = linear_x
-        command.twist.angular.z = angular_z
+        command.linear.x = linear_x
+        command.angular.z = angular_z
 
         return command
 
     # ============================================================
     # Odometry callback
     # ============================================================
-
     def odom_callback(self, message):
-
-        q = message.pose.pose.orientation
+        """When odom publishes, we grab relevant orientation values and feed back to class variables"""
+        q = message.pose.pose.orientation #grabs the x, y, z, w values
 
         # Quaternion -> yaw
         sin_yaw = 2.0 * (
@@ -165,6 +149,7 @@ class ObstacleDetectionNode(Node):
             yaw - self.previous_yaw
         )
 
+        #update class yaw values with calculated values read from odom
         self.current_yaw = yaw
         self.previous_yaw = yaw
 
@@ -181,7 +166,6 @@ class ObstacleDetectionNode(Node):
     # ============================================================
     # LiDAR callback
     # ============================================================
-
     def lidar_callback(self, message):
 
         # --------------------------------------------------------
@@ -272,6 +256,8 @@ class ObstacleDetectionNode(Node):
         for i, distance in enumerate(message.ranges):
 
             if not math.isfinite(distance):
+                continue
+            if distance < message.range_min or distance > message.range_max:
                 continue
 
             lidar_angle = (
@@ -365,7 +351,7 @@ class ObstacleDetectionNode(Node):
             <= SYMMETRY_TOLERANCE
         ):
 
-            self.start_escape()
+            self.start_escape(left_distance, right_distance)
             return
 
         # --------------------------------------------------------
@@ -420,7 +406,7 @@ class ObstacleDetectionNode(Node):
                     f'-> LEFT'
                 )
 
-            self.publisher.publish(command)
+            self.publisher.publish(command) #AVOID
             return
 
         # --------------------------------------------------------
@@ -429,17 +415,17 @@ class ObstacleDetectionNode(Node):
         # --------------------------------------------------------
 
         command = self.create_command(
-            linear_x=FORWARD_SPEED,
-            angular_z=0.0
+           linear_x=FORWARD_SPEED,
+           angular_z=0.0
         )
-
-        self.publisher.publish(command)
+        msg = Bool()
+        msg.data = True
+        self.publisher_bool.publish(msg)
 
     # ============================================================
     # Start ESCAPE behavior
     # ============================================================
-
-    def start_escape(self):
+    def start_escape(self, left_distance, right_distance):
 
         if self.current_yaw is None:
 
@@ -450,6 +436,15 @@ class ObstacleDetectionNode(Node):
             return
 
         self.state = 'ESCAPE'
+        self.target_escape_angle = ESCAPE_ANGLE + math.radians(
+            random.uniform(-30.0, 30.0)
+        )
+        if abs(left_distance - right_distance) > 1e-4:
+            self.escape_direction = (
+                -1.0 if left_distance < right_distance else 1.0
+            )
+        else:
+            self.escape_direction = random.choice([-1.0, 1.0])
 
         # Reset accumulated rotation
         self.escape_rotation = 0.0
@@ -459,7 +454,7 @@ class ObstacleDetectionNode(Node):
 
         self.get_logger().info(
             'ESCAPE: symmetric obstacle detected. '
-            'Beginning fixed 180 degree turn.'
+            f'Beginning {math.degrees(self.target_escape_angle):.1f} degree turn.'
         )
 
         self.perform_escape()
@@ -467,7 +462,6 @@ class ObstacleDetectionNode(Node):
     # ============================================================
     # Perform ESCAPE behavior
     # ============================================================
-
     def perform_escape(self):
 
         # --------------------------------------------------------
@@ -475,14 +469,14 @@ class ObstacleDetectionNode(Node):
         # approximately 180 degrees.
         # --------------------------------------------------------
 
-        if self.escape_rotation < ESCAPE_ANGLE:
+        if self.escape_rotation < self.target_escape_angle:
 
             command = self.create_command(
                 linear_x=0.0,
-                angular_z=-ESCAPE_TURN_SPEED
+            angular_z=self.escape_direction * ESCAPE_TURN_SPEED
             )
 
-            self.publisher.publish(command)
+            self.publisher.publish(command) #ESCAPE
 
             return
 
@@ -494,21 +488,21 @@ class ObstacleDetectionNode(Node):
             linear_x=0.0,
             angular_z=0.0
         )
-
-        self.publisher.publish(command)
+        msg = Bool()
+        msg.data = True
+        self.publisher_bool.publish(msg) #END ESCAPE
 
         self.state = 'NORMAL'
         self.escape_rotation = 0.0
 
         self.get_logger().info(
             'ESCAPE complete: '
-            'approximately 180 degrees rotated.'
+            f'{math.degrees(self.target_escape_angle):.1f} degrees rotated.'
         )
 
     # ============================================================
     # Normalize an angle to [-pi, pi]
     # ============================================================
-
     @staticmethod
     def normalize_angle(angle):
 
@@ -520,10 +514,6 @@ class ObstacleDetectionNode(Node):
 
         return angle
 
-
-# ================================================================
-# Main
-# ================================================================
 
 def main(args=None):
 
@@ -538,17 +528,9 @@ def main(args=None):
         pass
 
     finally:
-
-        # Stop the robot
-        stop_command = node.create_command(
-            linear_x=0.0,
-            angular_z=0.0
-        )
-
-        node.publisher.publish(stop_command)
-
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == '__main__':

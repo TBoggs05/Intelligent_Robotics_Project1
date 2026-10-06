@@ -41,11 +41,12 @@ class KeyboardController(Node):
         # Map key presses to (linear_x, angular_z) command values.
         # This is the simplest possible teleop mapping for the robot.
         self._key_map = {
-            'w': (1.0, 0.0),  # forward
-            's': (-1.0, 0.0),  # reverse
-            'a': (0.0, 1.0),   # turn left
-            'd': (0.0, -1.0),  # turn right
+            'w': (0.3, 0.0),  # forward
+            's': (-0.3, 0.0),  # reverse
+            'a': (0.0, 0.8),   # turn left
+            'd': (0.0, -0.8),  # turn right
             'x': (0.0, 0.0),   # stop
+            ' ': (0.0, 0.0),   # stop
         }
 
         # Put the terminal in raw mode so single keystrokes are read immediately.

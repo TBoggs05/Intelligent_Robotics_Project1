@@ -3,7 +3,7 @@ import os
 from ament_index_python.packages import get_package_share_directory
 
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription
+from launch.actions import IncludeLaunchDescription, TimerAction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node  # Added import for Node
 
@@ -44,14 +44,78 @@ def generate_launch_description():
         name='rplidar_bridge',
         output='screen',
         arguments=[
-            '/world/empty/model/turtlebot4/link/rplidar_link/sensor/rplidar/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan'
+            '/world/test_world/model/turtlebot4/link/rplidar_link/sensor/rplidar/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan'
         ],
         remappings=[
-            ('/world/empty/model/turtlebot4/link/rplidar_link/sensor/rplidar/scan', '/scan')
-        ]
+            ('/world/test_world/model/turtlebot4/link/rplidar_link/sensor/rplidar/scan', '/scan_raw')
+        ],
+        parameters=[{'use_sim_time': True}]
     )
-
+    scan_relay = Node(
+        package='reactive_navigation',
+        executable='scan_frame_relay',
+        name='scan_frame_relay',
+        output='screen',
+        parameters=[{
+            'use_sim_time': True,
+            'input_topic': '/scan_raw',
+            'output_topic': '/scan_mapping',
+            'frame_id': 'rplidar_link',
+        }],
+    )
+    mapping = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(os.path.join(
+            get_package_share_directory('reactive_navigation'),
+            'launch',
+            'mapping_launch.py',
+        )),
+    )
+    #Add robot brain node
+    robot_brain = Node(
+        package='reactive_navigation',
+        executable='robot_brain',
+        name='robot_brain',
+        output='screen',
+        parameters=[{'use_sim_time': True}]
+    )
+    obstacle_detection = Node(
+            package='reactive_navigation',
+            executable='obstacle_detection',
+            name='obstacle_detection',
+            output='screen',
+            parameters=[{'use_sim_time': True}]
+    )
+    collision_detection= Node(
+                package='reactive_navigation',
+                executable='collision_detection',
+                name='collision_detection',
+                output='screen',
+                parameters=[{'use_sim_time': True}]
+    )
+    keyboard_controller = Node(
+            package = 'reactive_navigation',
+            executable='keyboard_controller',
+            name ='keyboard_controller',
+            output='screen',
+            parameters=[{'use_sim_time': True}],
+            prefix='gnome-terminal --'
+    )
+    random_turn = Node(
+            package = 'reactive_navigation',
+            executable='random_turn',
+            name ='random_turn',
+            output='screen',
+            parameters=[{'use_sim_time': True}]
+    )
     return LaunchDescription([
+        rplidar_bridge,
         tb4_sim,
-        rplidar_bridge  # Added bridge to the launch description
+        scan_relay,
+        mapping,
+        collision_detection,
+        obstacle_detection,
+        keyboard_controller,
+        random_turn,
+        TimerAction(period=5.0, actions=[robot_brain]),
+        
     ])

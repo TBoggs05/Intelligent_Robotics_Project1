@@ -1,11 +1,12 @@
 import rclpy
 from geometry_msgs.msg import Twist, TwistStamped
 from rclpy.node import Node
-from std_msgs.msg import Bool, Int32, String
+from std_msgs.msg import Bool, Int32
+from nav_msgs.msg import Odometry
 from irobot_create_msgs.action import Undock
 from rclpy.action import ActionClient
 from reactive_navigation.robot_state import State
-
+import math
 
 class RobotBrain(Node):
     """Central robot brain.
@@ -18,12 +19,26 @@ class RobotBrain(Node):
         super().__init__('robot_brain')
 
         # Default state: robot can drive forward unless a higher-priority behavior takes over.
-        self.state = State.DRIVE_FORWARD
+        self.state = State.UNDOCKING
         self.keyboard_input = None
-        # State management for Undock action
-        self.undock_client = ActionClient(self, Undock, '/undock')
-        self.undock_goal_sent = False
+        self.last_key_time = None
+        self.declare_parameter('teleop_timeout_sec', 0.5)
+        self.teleop_timeout_sec = float(
+            self.get_parameter('teleop_timeout_sec').value
+        )
         self.undock_finished = False
+
+        # Odom management. Keeps true current state for undocking
+        self.current_x = 0
+        self.current_y = 0
+        self.current_yaw = 0
+        self.odom_sub = self.create_subscription(
+            Odometry,
+            '/odom',
+            self.odom_callback,
+            10
+        )
+
 
         # --------------------------------------------------------------------
         # KEYBOARD CONTROLLER SECTION (SUBSCRIPTIONS AND PUBLISHERS)
@@ -57,10 +72,32 @@ class RobotBrain(Node):
         # COLLISION DETECTION SECTION
         # --------------------------------------------------------------------
         self.collision_detection_sub = self.create_subscription(
-            String,
-            'bump_notifier',
+            Bool,
+            '/collision_detected',
             self.handle_collision,
             10
+        )
+        # --------------------------------------------------------------------
+        # OBSTACLE AVOIDANCE SECTION
+        # --------------------------------------------------------------------
+        self.escape_command = Twist()
+        self.obstacle_avoidance_sub = self.create_subscription(
+            Twist,
+            '/avoid_obstacles',
+            self.handle_obstacles,
+            10
+        )
+        self.obstacle_avoidance_end_sub = self.create_subscription(
+                    Bool,
+                    '/avoid_stop',
+                    self.handle_obstacle_stop,
+                    10
+        )
+        self.obstacle_command = None
+        self.obstacle_command_time = None
+        self.declare_parameter('obstacle_timeout_sec', 0.5)
+        self.obstacle_timeout_sec = float(
+            self.get_parameter('obstacle_timeout_sec').value
         )
         # --------------------------------------------------------------------
         # ROBOT STATE PUBLISHER
@@ -75,57 +112,114 @@ class RobotBrain(Node):
         # --------------------------------------------------------------------
         self.cmd_vel_pub = self.create_publisher(TwistStamped, 'cmd_vel', 10)
 
+
+    
+
+
+    #--------------------------------
+    #FUNCTION FOR EVAULATION TWISTS
+    #---------------------------------
+    def is_twist_zero(msg, tolerance=1e-6):
+        t = msg.twist
+        return (
+            abs(t.linear.x) < tolerance
+            and abs(t.linear.y) < tolerance
+            and abs(t.linear.z) < tolerance
+            and abs(t.angular.x) < tolerance
+            and abs(t.angular.y) < tolerance
+            and abs(t.angular.z) < tolerance
+        )
+    #ODOMETRY CALLBACK TO ASSIGN POSITIONS FOR UNDOCKING ROUTINE
+    def odom_callback(self, msg):
+        self.current_x = msg.pose.pose.position.x
+        self.current_y = msg.pose.pose.position.y
+
+        # Extract quaternion orientation
+        qx = msg.pose.pose.orientation.x
+        qy = msg.pose.pose.orientation.y
+        qz = msg.pose.pose.orientation.z
+        qw = msg.pose.pose.orientation.w
+
+        # Convert quaternion to yaw
+        siny_cosp = 2.0 * (qw * qz + qx * qy)
+        cosy_cosp = 1.0 - 2.0 * (qy * qy + qz * qz)
+
+        self.current_yaw = math.atan2(siny_cosp, cosy_cosp)
     # ------------------------------------------------------------------------
     # KEYBOARD CONTROLLER SECTION
     # ------------------------------------------------------------------------
     def keyboard_callback(self, msg: Twist):
-        """Store the most recent keyboard command."""
+        """Store the latest keypress and grant control unless colliding."""
         self.keyboard_input = msg
-        self.state = State.HUMAN_CONTROLLING
+        self.last_key_time = self.get_clock().now()
+        if self.state != State.COLLIDING:
+            self.state = State.HUMAN_CONTROLLING
 
     def handle_keyboard_control(self):
-        """Return the active keyboard command when human control is active."""
-        if self.keyboard_input is not None:
-            return self.keyboard_input
-        return None
+        """Return a fresh keyboard command, releasing expired teleoperation."""
+        if self.keyboard_input is None or self.last_key_time is None:
+            return None
+
+        age_sec = (
+            self.get_clock().now() - self.last_key_time
+        ).nanoseconds / 1e9
+        if age_sec > self.teleop_timeout_sec:
+            self.keyboard_input = None
+            self.last_key_time = None
+            if self.state == State.HUMAN_CONTROLLING:
+                self.state = State.DRIVE_FORWARD
+            return None
+
+        return self.keyboard_input
 
     # ------------------------------------------------------------------------
     # COLLISION DETECTION SECTION
     # ------------------------------------------------------------------------
-    # TODO: Add collision callback(s) and collision state logic.
-    # Expected behavior:
-    #   - subscribe to bumper/contact sensor topics
-    #   - set self.state = State.COLLIDING when a collision is detected
-    #   - publish a zero Twist to stop the robot immediately
-
-    def handle_collision(self, msg):
-        self.state = State.COLLIDING
-        self.get_logger().warn('Collision Detected. Halting Movement and Overriding Program Priority.')
+    def handle_collision(self, msg: Bool):
+        if msg.data:
+            if self.state != State.COLLIDING:
+                self.get_logger().warn(
+                    'Collision Detected. Halting Movement and Overriding Program Priority.'
+                )
+            self.state = State.COLLIDING
+        elif self.state == State.COLLIDING:
+            self.state = State.DRIVE_FORWARD
+    
     # ------------------------------------------------------------------------
     # OBSTACLE DETECTION SECTION
     # ------------------------------------------------------------------------
-    # TODO: Add obstacle detection callback(s) and avoidance logic.
-    # Expected behavior:
-    #   - subscribe to lidar / obstacle sensor topics
-    #   - detect nearby obstacles
-    #   - set the robot state to ESCAPE_SYMMETRIC or AVOID_ASYMMETRIC when appropriate
+    def handle_obstacles(self, msg):
+        if(self.state.value > State.ESCAPE_SYMMETRIC.value):
+            self.state = State.ESCAPE_SYMMETRIC
+            self.obstacle_command = msg
+            self.obstacle_command_time = self.get_clock().now()
 
-    def handle_obstacles(self):
-        """Placeholder for obstacle logic."""
-        # TODO: implement obstacle avoidance logic here.
-        return False
+    def handle_obstacle_stop(self, msg):
+        #self.get_logger().info('Stop avoidance/escape behavior')
+        
+        if(msg.data == True and (self.state == State.ESCAPE_SYMMETRIC or self.state == State.AVOID_ASYMMETRIC)):
+            self.stop_robot()
+            self.state = State.DRIVE_FORWARD #return to default state after escape finishes
+            self.obstacle_command = None
+            self.obstacle_command_time = None
+
 
     # ------------------------------------------------------------------------
     # RANDOM TURN SECTION
     # ------------------------------------------------------------------------
     def random_turn_active_callback(self, msg):
         self.random_turn_active = msg.data
+        if self.random_turn_active:
+            if self.state.value > State.TURN_RANDOMLY.value:
+                self.state = State.TURN_RANDOMLY
+        else:
+            if self.state == State.TURN_RANDOMLY:
+                self.state = State.DRIVE_FORWARD
         
     def random_turn_cmd_callback(self, msg):
         self.random_turn_cmd = msg   
 
     def handle_random_turn(self):
-        
         if self.random_turn_active:
             return self.random_turn_cmd
         
@@ -145,98 +239,244 @@ class RobotBrain(Node):
         msg.data = self.state.value
 
         self.state_pub.publish(msg)
+    # ================================================================
+    # HELPER FUNCTIONS
+    # ================================================================
+    def publish_twist(self, msg: Twist):
+            """Convert internal Twist command to TwistStamped and send it"""
+    
+            stamped_msg = TwistStamped()
+    
+            stamped_msg.header.stamp = (
+                self.get_clock().now().to_msg()
+            )
+    
+            stamped_msg.twist = msg
+    
+            self.cmd_vel_pub.publish(stamped_msg)
+    def normalize_angle(self, angle):
+        """
+        Normalize angle to [-pi, pi].
+        """
+        while angle > math.pi:
+            angle -= 2.0 * math.pi
 
+        while angle < -math.pi:
+            angle += 2.0 * math.pi
+
+        return angle
+    def stop_robot(self):
+        msg = TwistStamped()
+
+        msg.header.stamp = self.get_clock().now().to_msg()
+
+        msg.twist.linear.x = 0.0
+        msg.twist.angular.z = 0.0
+        self.get_logger().info('Stopping the robot!')
+        self.cmd_vel_pub.publish(msg)
+    def undock(self):
+        if self.undock_finished == False:
+            """
+            Manually undock the robot.
+
+            Sequence:
+                1. Back away from the dock.
+                2. Rotate 180 degrees.
+                3. Resume normal driving.
+
+            This does not use the /undock action, since that kept breaking...
+            Instead, we hard code odom readings to ensure the robot leaves the dock.
+            """
+
+            # ============================================================
+            # Configuration
+            # ============================================================
+
+            BACKUP_DISTANCE = 0.20       # meters
+            BACKUP_SPEED = 0.10          # m/s
+
+            TURN_ANGLE = math.pi         # 180 degrees
+            TURN_SPEED = 0.8             # rad/s
+
+            # ============================================================
+            # Initialize undock sequence
+            # ============================================================
+
+            if not hasattr(self, 'manual_undock_started'):
+                self.manual_undock_started = False
+                self.manual_undock_start_x = None
+                self.manual_undock_start_y = None
+                self.manual_undock_start_yaw = None
+                self.manual_undock_phase = "BACKUP"
+
+            # ------------------------------------------------------------
+            # Start sequence
+            # ------------------------------------------------------------
+
+            if not self.manual_undock_started:
+
+                self.manual_undock_started = True
+
+                self.manual_undock_phase = "BACKUP"
+
+                # Save starting odometry position
+                self.manual_undock_start_x = self.current_x
+                self.manual_undock_start_y = self.current_y
+
+                self.manual_undock_start_yaw = self.current_yaw
+
+                self.get_logger().info(
+                    "Manual undock started: backing away from dock..."
+                )
+
+            # ============================================================
+            # BACK UP
+            # ============================================================
+
+            if self.manual_undock_phase == "BACKUP":
+
+                dx = self.current_x - self.manual_undock_start_x
+                dy = self.current_y - self.manual_undock_start_y
+
+                distance = math.sqrt(dx * dx + dy * dy)
+
+                if distance < BACKUP_DISTANCE:
+
+                    msg = TwistStamped()
+
+                    msg.header.stamp = self.get_clock().now().to_msg()
+
+                    # Move backward
+                    msg.twist.linear.x = -BACKUP_SPEED
+                    msg.twist.angular.z = 0.0
+
+                    self.cmd_vel_pub.publish(msg)
+
+                    return
+
+                # We have backed up far enough
+                self.stop_robot()
+
+                self.get_logger().info(
+                    "Backup complete. Beginning 180 degree turn..."
+                )
+
+                # Save the yaw at the START of the turn
+                self.manual_undock_start_yaw = self.current_yaw
+
+                self.manual_undock_phase = "TURN"
+
+                return
+
+            # ============================================================
+            # Turn for 4 seconds //This can be replaced with angle, but it was breaking
+            # due to some issue that we dont have time to fix so this works for now
+            # ============================================================
+
+            if self.manual_undock_phase == "TURN":
+
+                # Initialize timer the first time we enter TURN
+                if not hasattr(self, 'manual_undock_turn_start'):
+                    self.manual_undock_turn_start = self.get_clock().now()
+
+                # Calculate elapsed time
+                elapsed = (
+                    self.get_clock().now() - self.manual_undock_turn_start
+                ).nanoseconds / 1e9
+
+                # --------------------------------------------------------
+                # Keep turning for 4 seconds
+                # --------------------------------------------------------
+
+                if elapsed < 4.0:
+
+                    msg = TwistStamped()
+
+                    msg.header.stamp = self.get_clock().now().to_msg()
+
+                    msg.twist.linear.x = 0.0
+
+                    # Rotate counter-clockwise
+                    msg.twist.angular.z = TURN_SPEED
+
+                    self.cmd_vel_pub.publish(msg)
+
+                    return
+
+            # --------------------------------------------------------
+            # Finished turning
+            # --------------------------------------------------------
+
+            self.stop_robot()
+
+            self.get_logger().info(
+                "Manual undock complete. Resuming normal navigation."
+            )
+
+            self.undock_finished = True
+            self.state = State.DRIVE_FORWARD
+
+            return
     # ------------------------------------------------------------------------
     # MAIN CONTROL LOOP
     # ------------------------------------------------------------------------
     def update(self):
+        self.get_logger().info("CURRENT STATE: " + self.state.name)
         """Apply the current priority logic for keyboard-driven behavior.
 
         Priority order should eventually be:
+            0. undocking sequence* (should run before main loop)
             1. collision stop
             2. human control
             3. symmetric obstacle escape
             4. asymmetric obstacle avoidance
             5. random turn
             6. default forward motion
+            where lower value => higher priority
         """
-        # --- ABSOLUTE PRIORITY: Initial Undock Sequence ---
-        if not self.undock_finished:
-            if not self.undock_goal_sent:
-                # Wait for the server, then send the undock goal
-                if self.undock_client.wait_for_server(timeout_sec=0.1):
-                    self.get_logger().info('Undock..')
-                    self.undock_goal_sent = True
-                    
-                    # Send the goal. The robot will autonomously drive off the dock.
-                    future = self.undock_client.send_goal_async(Undock.Goal())
-                    
-                    # Tell the script what to do when the robot finishes undocking
-                    def done_callback(fut):
-                        self.get_logger().info('Undocking finished!')
-                        self.undock_finished = True
-                    
-                    # We link the callback directly here to keep it simple
-                    future.add_done_callback(
-                        lambda fut: fut.result().get_result_async().add_done_callback(done_callback)
-                    )
-                else:
-                    self.get_logger().warn('Waiting for /undock action server to become active...', throttle_duration_sec=2.0)
-            
-            return # Block any other movements from overriding the undock sequence
-        # -----------------------------------------------------
-        #Program routine
-        # Lower enum value means higher priority.
+        self.undock() #undock before beginning true routine; 
+
         if self.state == State.COLLIDING:
-            halt_msg = Twist()
-            halt_msg.linear.x = 0.0
-            halt_msg.angular.z = 0.0
-            self.publish_twist(halt_msg)
+            self.stop_robot()
             return
 
-        keyboard_cmd = self.handle_keyboard_control()
-        if keyboard_cmd is not None:
-            self.publish_twist(keyboard_cmd)
-            return
+        elif self.state == State.HUMAN_CONTROLLING:
+            keyboard_cmd = self.handle_keyboard_control()
+            if keyboard_cmd is not None:
+                self.publish_twist(keyboard_cmd)
+                return
 
-        # TODO: Add placeholder checks for obstacle handling.
-        # For now, the robot falls back to a simple forward command.
-        
-        random_cmd = self.handle_random_turn()
-        
-        if random_cmd is not None:
-            self.state = State.TURN_RANDOMLY
-            self.publish_state()
-            self.publish_twist(
-                random_cmd
-            )
-            return
+        elif self.state in (State.AVOID_ASYMMETRIC, State.ESCAPE_SYMMETRIC):
+            command_age = None
+            if self.obstacle_command_time is not None:
+                command_age = (
+                    self.get_clock().now() - self.obstacle_command_time
+                ).nanoseconds / 1e9
+            if (
+                self.obstacle_command is None
+                or command_age is None
+                or command_age > self.obstacle_timeout_sec
+            ):
+                self.obstacle_command = None
+                self.obstacle_command_time = None
+                self.state = State.DRIVE_FORWARD
+            else:
+                self.publish_twist(self.obstacle_command)
+        elif self.state == State.TURN_RANDOMLY:
+            random_cmd = self.handle_random_turn()
+            if random_cmd is not None:
+                self.publish_state()
+                self.publish_twist(random_cmd)
+                return
 
         # Default behaviour (Drive forward)
-        self.state = State.DRIVE_FORWARD
-
-        self.publish_state()
-
-        default_msg = Twist()
-        default_msg.linear.x = 0.5
-        default_msg.angular.z = 0.0
-
-        self.publish_twist(default_msg)
-
-    def publish_twist(self, msg: Twist):
-        """Convert internal Twist command to TwistStamped and send it"""
-
-        stamped_msg = TwistStamped()
-
-        stamped_msg.header.stamp = (
-            self.get_clock().now().to_msg()
-        )
-
-        stamped_msg.twist = msg
-
-        self.cmd_vel_pub.publish(stamped_msg)
-
-
+        if self.state == State.DRIVE_FORWARD:
+            self.publish_state()
+            default_msg = Twist()
+            default_msg.linear.x = 0.5
+            default_msg.angular.z = 0.0
+            self.publish_twist(default_msg)
+        
 def main(args=None):
     rclpy.init(args=args)
     node = RobotBrain()
