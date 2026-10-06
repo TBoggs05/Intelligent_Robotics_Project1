@@ -423,6 +423,7 @@ class RobotBrain(Node):
         elif self.state == State.TURN_RANDOMLY:
             random_cmd = self.handle_random_turn()
             if random_cmd is not None:
+                self.publish_state()
                 self.publish_twist(random_cmd)
                 return
 
