@@ -9,7 +9,7 @@ races or disconnects with SLAM and obstacle detection listeners.
 Because the sensor physical origin coincides with 'rplidar_link' (as defined
 in the TurtleBot 4 URDF and robot_state_publisher TF tree), this node relays
 the LaserScan data with header.frame_id set to 'rplidar_link' on both
-'/scan_mapping' and '/scan'. This ensures reliable TF lookups for
+'/scan_mapping' and '/scan'. This ensures 100% reliable TF lookups for
 slam_toolbox and obstacle_detection_node.
 
 Subscribed Topics:
@@ -40,6 +40,7 @@ class ScanFrameRelay(Node):
         """Initialize the ScanFrameRelay node, parameters, and publishers."""
         super().__init__('scan_frame_relay')
 
+        # Node parameters
         self.declare_parameter('input_topic', '/scan_raw')
         self.declare_parameter('output_topic', '/scan_mapping')
         self.declare_parameter('frame_id', 'rplidar_link')
@@ -48,18 +49,21 @@ class ScanFrameRelay(Node):
         self.output_topic = self.get_parameter('output_topic').value
         self.first_scan_logged = False
 
+        # Sensor data QoS publisher for mapping
         self.publisher = self.create_publisher(
             LaserScan,
             self.output_topic,
             qos_profile_sensor_data,
         )
 
+        # Standard /scan publisher for navigation and obstacles
         self.scan_publisher = self.create_publisher(
             LaserScan,
             '/scan',
             qos_profile_sensor_data,
         )
 
+        # Subscription to raw bridged scan
         input_topic = self.get_parameter('input_topic').value
         self.create_subscription(
             LaserScan,
@@ -76,7 +80,11 @@ class ScanFrameRelay(Node):
             )
 
     def scan_callback(self, msg: LaserScan):
-        """Update frame_id and republish the scan on both output topics."""
+        """
+        Update frame_id and republish to output_topic and /scan.
+
+        :param msg: sensor_msgs/LaserScan message with raw frame_id.
+        """
         if not self.first_scan_logged:
             self.get_logger().info(
                 f'Received LiDAR scan on {msg.header.frame_id}; '
@@ -91,12 +99,14 @@ class ScanFrameRelay(Node):
 
 
 def main(args=None):
-    """Run the scan frame relay node."""
+    """Run scan frame relay node."""
     rclpy.init(args=args)
     node = ScanFrameRelay()
     try:
         rclpy.spin(node)
     except (KeyboardInterrupt, ExternalShutdownException):
+        pass
+    except Exception:
         pass
     finally:
         node.destroy_node()

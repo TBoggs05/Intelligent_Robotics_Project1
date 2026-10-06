@@ -19,5 +19,7 @@ import pytest
 @pytest.mark.linter
 @pytest.mark.pep257
 def test_pep257():
-    rc = main(argv=['.', 'test'])
+    rc = main(argv=[
+        '--exclude', 'install', 'log', 'build', '.pytest_cache', '.', 'test'
+    ])
     assert rc == 0, 'Found code style errors / warnings'

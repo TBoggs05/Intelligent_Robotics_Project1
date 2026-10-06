@@ -1,6 +1,8 @@
-from setuptools import find_packages, setup
-import os
 from glob import glob
+import os
+
+from setuptools import find_packages, setup
+
 package_name = 'reactive_navigation'
 
 setup(
@@ -11,8 +13,10 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-	#opens non python files on launch
-	(os.path.join('share', package_name, 'launch'), glob('launch/*.py')), (os.path.join('share', package_name, 'worlds'), glob('worlds/*')),  
+        # opens non python files on launch
+        (os.path.join('share', package_name, 'launch'), glob('launch/*.py')),
+        (os.path.join('share', package_name, 'worlds'), glob('worlds/*')),
+        (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -28,9 +32,11 @@ setup(
     entry_points={
         'console_scripts': [
             'keyboard_controller = reactive_navigation.keyboard_controller:main',
-			'robot_brain = reactive_navigation.robot_brain:main',
-			'random_turn = reactive_navigation.random_turn:main',
+            'robot_brain = reactive_navigation.robot_brain:main',
+            'random_turn = reactive_navigation.random_turn:main',
+            'random_turn_node = reactive_navigation.random_turn:main',
             'obstacle_detection = reactive_navigation.obstacle_detection_node:main',
+            'obstacle_detection_node = reactive_navigation.obstacle_detection_node:main',
             'collision_detection = reactive_navigation.collision_detection:main',
             'scan_frame_relay = reactive_navigation.scan_frame_relay:main',
         ],

@@ -1,16 +1,30 @@
 #!/usr/bin/env python3
-"""ROS 2 keyboard controller node.
+"""
+Keyboard teleoperation controller node (Priority Level 2).
 
-This node reads single-key terminal input and republishes it as a
-`geometry_msgs/Twist` message on the `keyboard_input` topic. The robot brain or
-other nodes can then consume that topic and convert it into final motor commands.
+Captures non-blocking single-keystroke user input from the terminal and
+publishes velocity commands to the `/keyboard_input` topic. The RobotBrain
+subscribes to this topic and grants it Priority Level 2 human override over
+autonomous behaviors.
+
+Controls:
+    w: Drive forward (+0.3 m/s)
+    s: Drive reverse (-0.3 m/s)
+    a: Rotate counter-clockwise / left (+0.8 rad/s)
+    d: Rotate clockwise / right (-0.8 rad/s)
+    x / Space: Stop (0.0 m/s, 0.0 rad/s)
+    Ctrl+C: Clean shutdown and restore terminal settings
+
+Published Topics:
+    /keyboard_input (geometry_msgs/Twist): User velocity command.
 """
 
 import select
 import sys
 
-import rclpy
 from geometry_msgs.msg import Twist
+import rclpy
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 
 try:
@@ -22,101 +36,120 @@ except ImportError:
 
 
 class KeyboardController(Node):
-    """Publish Twist commands from terminal key presses to the /keyboard_input topic."""
+    """
+    Publish Twist commands from terminal key presses to /keyboard_input.
+
+    Puts the standard input terminal in cbreak mode to read single keypresses
+    immediately without requiring the user to press Enter.
+    """
 
     def __init__(self):
-        # Initialize the ROS node. The node name is used in ROS logs and graph tools.
+        """Initialize the keyboard controller node, mappings, and timer."""
         super().__init__('keyboard_controller')
 
-        # Publish commands as a Twist so any consumer can read linear and angular motion.
-        self.publisher_ = self.create_publisher(Twist, 'keyboard_input', 10)
+        # Publish commands as Twist messages consumed by robot_brain
+        self.publisher_ = self.create_publisher(
+            Twist,
+            '/keyboard_input',
+            10,
+        )
 
-        # Poll for key presses repeatedly at a fixed interval.
+        # Poll for user key presses at 20 Hz
         self.timer_ = self.create_timer(0.05, self.timer_callback)
 
-        # Track terminal configuration so the original terminal state can be restored.
+        # Terminal configuration tracking for graceful restoration on exit
         self._terminal_ready = False
         self._original_terminal_settings = None
 
-        # Map key presses to (linear_x, angular_z) command values.
-        # This is the simplest possible teleop mapping for the robot.
+        # Key mapping dictionary: key -> (linear_x m/s, angular_z rad/s)
         self._key_map = {
-            'w': (0.3, 0.0),  # forward
-            's': (-0.3, 0.0),  # reverse
-            'a': (0.0, 0.8),   # turn left
-            'd': (0.0, -0.8),  # turn right
-            'x': (0.0, 0.0),   # stop
-            ' ': (0.0, 0.0),   # stop
+            'w': (0.3, 0.0),    # Forward
+            's': (-0.3, 0.0),   # Reverse
+            'a': (0.0, 0.8),    # Turn Left (CCW)
+            'd': (0.0, -0.8),   # Turn Right (CW)
+            'x': (0.0, 0.0),    # Stop
+            ' ': (0.0, 0.0),    # Stop
         }
 
-        # Put the terminal in raw mode so single keystrokes are read immediately.
+        # Configure stdin terminal in non-blocking cbreak mode
         self._configure_terminal()
 
+        self.get_logger().info(
+            'Keyboard Controller started.\n'
+            'Controls: [w] forward, [s] reverse, [a] left, [d] right, '
+            '[x/space] stop'
+        )
+
     def _configure_terminal(self):
-        # If there is no TTY attached, we cannot read keys from the terminal.
+        """Configure stdin into cbreak mode for instantaneous key capture."""
         if not sys.stdin.isatty() or termios is None or tty is None:
             self.get_logger().warn(
-                'Keyboard input is not attached to a TTY; keyboard control will not read keys.'
+                'Keyboard input is not attached to a TTY; '
+                'keyboard control will not read keys.'
             )
             return
 
-        # Save the current terminal settings so we can restore them when the node exits.
         self._original_terminal_settings = termios.tcgetattr(sys.stdin)
         tty.setcbreak(sys.stdin.fileno())
         self._terminal_ready = True
 
     def _restore_terminal(self):
-        # Restore standard terminal behavior when shutting down.
+        """Restore terminal attributes back to their original settings."""
         if self._terminal_ready and self._original_terminal_settings is not None:
-            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self._original_terminal_settings)
+            termios.tcsetattr(
+                sys.stdin,
+                termios.TCSADRAIN,
+                self._original_terminal_settings,
+            )
             self._terminal_ready = False
 
     def timer_callback(self):
-        # Ignore this callback if the process is not running in an interactive terminal.
+        """Poll stdin for a keypress and publish corresponding Twist command."""
         if not sys.stdin.isatty():
             return
 
-        # Non-blocking check to see whether a key is ready.
+        # Non-blocking poll for available stdin data
         if not select.select([sys.stdin], [], [], 0)[0]:
             return
 
-        # Read exactly one character from stdin.
         key = sys.stdin.read(1)
 
-        # Ctrl-C is the usual way to stop the keyboard node.
+        # Handle Ctrl+C gracefully
         if key == '\x03':
-            self.get_logger().info('Keyboard interrupt received; shutting down controller.')
+            self.get_logger().info(
+                'Keyboard interrupt received; shutting down controller.'
+            )
             raise KeyboardInterrupt
 
-        # Ignore keys that are not part of our control mapping.
         if key not in self._key_map:
             return
 
-        # Convert the key to a Twist message.
         linear_x, angular_z = self._key_map[key]
         msg = Twist()
         msg.linear.x = linear_x
         msg.angular.z = angular_z
 
-        # Publish the command so other nodes can react to it.
         self.publisher_.publish(msg)
         self.get_logger().info(
-            f'Published keyboard command: key={key!r}, linear_x={linear_x}, angular_z={angular_z}'
+            f'Published keyboard command: key={key!r}, '
+            f'linear_x={linear_x}, angular_z={angular_z}'
         )
 
     def destroy_node(self):
-        # Always restore the terminal state before shutting down.
+        """Restore terminal state before destroying the node."""
         self._restore_terminal()
         super().destroy_node()
 
 
 def main(args=None):
-    # Standard ROS 2 node startup pattern.
+    """Run the keyboard controller node."""
     rclpy.init(args=args)
     node = KeyboardController()
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
+        pass
+    except Exception:
         pass
     finally:
         node.destroy_node()

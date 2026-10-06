@@ -8,14 +8,14 @@
   <license>Apache-2.0</license>
 
   <depend>rclpy</depend>
-  <depend>geometry_msgs</depend>
-  <depend>sensor_msgs</depend>
-  <depend>ros_gz_interfaces</depend>
   <depend>action_msgs</depend>
   <depend>irobot_create_msgs</depend>
+  <depend>geometry_msgs</depend>
   <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
   <depend>nav_msgs</depend>
   <depend>tf2_ros</depend>
+  <depend>ros_gz_interfaces</depend>
   <depend>ros_gz_bridge</depend>
 
   <exec_depend>ament_index_python</exec_depend>
