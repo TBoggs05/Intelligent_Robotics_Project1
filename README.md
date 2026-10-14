@@ -5,14 +5,18 @@ Gazebo Sim Version: 8.15.0
 
 
 How to load gazebo simulation
-1) Source the ROS distro (i.e. underlay)
+1) Source the ROS distro (i.e. underlay):
 source /opt/ros/jazzy/setup.bash
-2) Source the workspace (i.e. overlay)
+2) Source the workspace (i.e. overlay):
 source ~/project1_ws/install/setup.bash
-3) Build the project using colcon
+3) Build the project using colcon:
 colcon build --symlink-install
-4) Launch the simulation (ros2 launch <package_name> <launch_file_name>)
-ros2 launch reactive_navigation project1_launch.py
+4) Launch the simulation (ros2 launch <package_name> <launch_file_name>):
+colcon build --symlink-install
+5) Launch keyboard controller:
+ros2 run reactive_navigation keyboard_controller
+6) To download map (AFTER RUNNING FOR ~30 SECONDS):
+ros2 run nav2_map_server map_saver_cli -f ~/project1_ws/my_map
 
 
 #BRIDGE COMMAND FOR /SCAN#
