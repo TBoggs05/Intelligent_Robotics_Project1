@@ -51,7 +51,7 @@ class RandomTurn(Node):
         # Behavioral State Tracking
         # --------------------------------------------------------------------
         # Mirror of current robot brain active state
-        self.current_state = State.DRIVE_FORWARD
+        self.current_state = None
 
         # --------------------------------------------------------------------
         # Odometry Integration Variables
