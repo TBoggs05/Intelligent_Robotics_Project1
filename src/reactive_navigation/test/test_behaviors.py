@@ -2,7 +2,7 @@
 
 import math
 
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, TwistStamped
 from irobot_create_msgs.msg import HazardDetection, HazardDetectionVector
 from nav_msgs.msg import Odometry
 import pytest
@@ -98,8 +98,8 @@ def test_robot_brain_priority_hierarchy():
         assert brain.state == State.ESCAPE_SYMMETRIC
 
         # Priority 2: Keyboard teleop overrides obstacle behaviors
-        key_twist = Twist()
-        key_twist.linear.x = 0.3
+        key_twist = TwistStamped()
+        key_twist.twist.linear.x = 0.3
         brain.keyboard_callback(key_twist)
         brain.update()
         assert brain.state == State.HUMAN_CONTROLLING

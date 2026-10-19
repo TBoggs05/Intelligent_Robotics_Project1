@@ -2,12 +2,11 @@
 
 ## Node Architecture
 
-### 1. Keyboard Controller Node
-**File:** `keyboard_controller.py`
+### 1. Keyboard Controller (external)
+**Command:** `ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -p stamped:=true -r cmd_vel:=/keyboard_input`
 - **Responsibility:** Capture keyboard input from the user
-- **Publishes:** `/keyboard_input` (Twist messages)
+- **Publishes:** `/keyboard_input` (TwistStamped messages)
 - **Subscribes:** None
-- **Behavior:** Listens for key presses (w/a/s/d) and publishes velocity commands
 
 ### 2. Collision Detection Node
 **File:** `collision_detection_node.py`
@@ -80,7 +79,7 @@ class State(Enum):
 | Topic | Message Type | Publisher | Subscriber | Frequency |
 |-------|--------------|-----------|------------|-----------|
 | `/cmd_vel` | Twist | Robot Brain Node | TurtleBot 4 | 10 Hz |
-| `/keyboard_input` | Twist | Keyboard Controller | Robot Brain Node | On input |
+| `/keyboard_input` | TwistStamped | teleop_twist_keyboard | Robot Brain Node | On input |
 | `/collision_detected` | Bool | Collision Detection | Robot Brain Node | 10 Hz |
 | `/obstacles` | (custom) | Obstacle Sensing | Robot Brain Node | 10 Hz |
 | `/turn_signal` | Bool/Int32 | Random Turn | Robot Brain Node | Every 1 ft |

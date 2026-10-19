@@ -97,7 +97,7 @@ class RobotBrain(Node):
         # --------------------------------------------------------------------
         # Priority 2: Keyboard teleoperation command input
         self.keyboard_sub = self.create_subscription(
-            Twist,
+            TwistStamped,
             self.teleop_topic,
             self.keyboard_callback,
             10,
@@ -167,13 +167,13 @@ class RobotBrain(Node):
     # ------------------------------------------------------------------------
     # KEYBOARD CONTROLLER HANDLERS (Priority 2: Human Teleoperation)
     # ------------------------------------------------------------------------
-    def keyboard_callback(self, msg: Twist):
+    def keyboard_callback(self, msg: TwistStamped):
         """
         Store the most recent teleoperation command with a receive timestamp.
 
-        :param msg: geometry_msgs/Twist command from keyboard_controller.
+        :param msg: geometry_msgs/TwistStamped from teleop_twist_keyboard.
         """
-        self.keyboard_input = msg
+        self.keyboard_input = msg.twist
         self.last_key_time = self.get_clock().now()
         # Immediately mark human controlling state unless physical collision
         if self.state != State.COLLIDING:

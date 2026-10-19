@@ -16,17 +16,8 @@ from launch_ros.actions import Node
 
 def generate_launch_description():
     """Generate launch description for the physical TurtleBot 4."""
-    pkg_reactive_nav = get_package_share_directory('reactive_navigation')
-    tb4_bringup_launch_dir = os.path.join(
-        get_package_share_directory('turtlebot4_bringup'), 'launch'
-    )
     tb4_navigation_launch_dir = os.path.join(
         get_package_share_directory('turtlebot4_navigation'), 'launch'
-    )
-    turtlebot4_node_params = os.path.join(
-        pkg_reactive_nav,
-        'config',
-        'turtlebot4_node.yaml',
     )
 
     launch_args = [
@@ -40,15 +31,6 @@ def generate_launch_description():
             'undock_on_start', default_value='false', choices=['true', 'false'],
             description='Request undocking before robot control starts'),
     ]
-
-    turtlebot4 = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(tb4_bringup_launch_dir, 'standard.launch.py')
-        ),
-        launch_arguments={
-            'param_file': turtlebot4_node_params,
-        }.items(),
-    )
 
     nav2 = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -115,7 +97,6 @@ def generate_launch_description():
     )
 
     return LaunchDescription(launch_args + [
-        turtlebot4,
         nav2,
         slam,
         collision_detection,
