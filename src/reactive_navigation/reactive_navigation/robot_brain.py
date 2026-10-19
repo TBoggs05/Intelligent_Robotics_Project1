@@ -1,23 +1,4 @@
-"""
-Central Robot Brain arbitration node implementing Brooks Subsumption.
 
-This node implements the behavioral coordinator for the reactive navigation
-system. Following Rodney Brooks' Subsumption Architecture, behaviors are
-organized into distinct layers where higher-priority behavioral layers
-suppress (inhibit) lower-priority behavioral layers:
-
-Priority Hierarchy (Level 1 is highest priority, Level 6 is lowest):
-    Level 1: Collision Halt (Bumper contact hazard -> Stop immediately)
-    Level 2: Human Teleoperation (Keyboard override -> Manual user control)
-    Level 3: Symmetric Obstacle Escape (LiDAR head-on wall -> 180 deg turn)
-    Level 4: Asymmetric Obstacle Avoidance (LiDAR side hazard -> Steer away)
-    Level 5: Random Turn Exploration (Every 1 ft forward -> +-15 deg turn)
-    Level 6: Drive Forward (Default basal drive -> Constant 0.25 m/s)
-
-In addition to the 6 primary layers, an initial undocking sequence manages
-the Create 3 charging dock separation before normal autonomous navigation
-begins.
-"""
 
 import math
 

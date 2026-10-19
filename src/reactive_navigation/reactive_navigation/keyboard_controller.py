@@ -1,23 +1,4 @@
 #!/usr/bin/env python3
-"""
-Keyboard teleoperation controller node (Priority Level 2).
-
-Captures non-blocking single-keystroke user input from the terminal and
-publishes velocity commands to the `/keyboard_input` topic. The RobotBrain
-subscribes to this topic and grants it Priority Level 2 human override over
-autonomous behaviors.
-
-Controls:
-    w: Drive forward (+0.3 m/s)
-    s: Drive reverse (-0.3 m/s)
-    a: Rotate counter-clockwise / left (+0.8 rad/s)
-    d: Rotate clockwise / right (-0.8 rad/s)
-    x / Space: Stop (0.0 m/s, 0.0 rad/s)
-    Ctrl+C: Clean shutdown and restore terminal settings
-
-Published Topics:
-    /keyboard_input (geometry_msgs/Twist): User velocity command.
-"""
 
 import select
 import sys

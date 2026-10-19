@@ -1,14 +1,4 @@
-"""
-Obstacle Detection and Avoidance Node (Priorities 3 and 4).
 
-Implements two distinct reactive behaviors based on frontal LiDAR ranges:
-- Priority 3 (Symmetric Obstacle Escape): A fixed action pattern triggered
-  when obstacles are detected symmetrically within 1ft (0.3048m) in front of
-  the robot. Rotates 180 +- 30 degrees using odometry integration.
-- Priority 4 (Asymmetric Obstacle Avoidance): A reflexive behavior triggered
-  when an obstacle is closer on one side within 1ft. Steers away from the
-  closer obstacle until the stimulus is cleared.
-"""
 
 import math
 import random

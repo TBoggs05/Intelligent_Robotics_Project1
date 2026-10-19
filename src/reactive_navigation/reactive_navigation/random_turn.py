@@ -1,19 +1,3 @@
-"""
-Random turn exploration behavior node (Priority Level 5).
-
-This node implements Behavior 5 of the reactive navigation subsumption
-architecture: after every 1 foot of forward movement accumulated while in
-the basal DRIVE_FORWARD state, execute a random turn uniformly sampled
-within +-15 degrees.
-
-Subscribed Topics:
-    /odom (nav_msgs/Odometry): Robot pose for distance and yaw tracking.
-    /robot_state (std_msgs/Int32): Current active state from robot_brain.
-
-Published Topics:
-    /random_turn/active (std_msgs/Bool): Indicates if a turn is executing.
-    /random_turn/cmd (geometry_msgs/Twist): Velocity command for the turn.
-"""
 
 import math
 import random

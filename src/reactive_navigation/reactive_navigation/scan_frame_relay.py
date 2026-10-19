@@ -1,25 +1,3 @@
-"""
-Republish LiDAR scans in a canonical frame present in the TF tree.
-
-In Gazebo Harmonic simulation, the TurtleBot 4 RPLiDAR sensor plugin
-publishes raw scans stamped with 'turtlebot4/rplidar_link/rplidar'. The static
-transform publisher bridging this frame to 'rplidar_link' can have timing
-races or disconnects with SLAM and obstacle detection listeners.
-
-Because the sensor physical origin coincides with 'rplidar_link' (as defined
-in the TurtleBot 4 URDF and robot_state_publisher TF tree), this node relays
-the LaserScan data with header.frame_id set to 'rplidar_link' on both
-'/scan_mapping' and '/scan'. This ensures 100% reliable TF lookups for
-slam_toolbox and obstacle_detection_node.
-
-Subscribed Topics:
-    /scan_raw (sensor_msgs/LaserScan): Raw scan from ros_gz_bridge.
-
-Published Topics:
-    /scan_mapping (sensor_msgs/LaserScan): Relayed scan with canonical frame.
-    /scan (sensor_msgs/LaserScan): Canonical scan on standard topic.
-"""
-
 import rclpy
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
