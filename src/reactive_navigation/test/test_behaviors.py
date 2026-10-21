@@ -110,6 +110,7 @@ def test_robot_brain_priority_hierarchy():
         brain.collision_callback(bump_msg)
         brain.update()
         assert brain.state == State.COLLIDING
+        assert brain.halt_requested
     finally:
         brain.destroy_node()
 

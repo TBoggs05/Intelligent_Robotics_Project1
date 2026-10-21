@@ -43,6 +43,7 @@ class RobotBrain(Node):
         self.collision_recovery_active = False
         self.collision_recovery_last_yaw = None
         self.collision_recovery_progress = 0.0
+        self.halt_requested = False
 
         # Odometry orientation tracking for turn integration
         self.last_odom_yaw = None
@@ -423,11 +424,16 @@ class RobotBrain(Node):
 
         # --- PRIORITY 1: Bumper Collision Halt ---
         # Highest safety layer: if physical bumper contact is sensed,
-        # publish zero velocity immediately to prevent damage.
+        # publish zero velocity and terminate the program.
         collision_cmd = self.halt_on_collision()
         if collision_cmd is not None:
             self.publish_state()
             self.publish_twist(collision_cmd)
+            if not self.halt_requested:
+                self.get_logger().error(
+                    'Bumper collision detected; halting robot and exiting.'
+                )
+            self.halt_requested = True
             return
 
         # --- PRIORITY 2: Human Teleoperation ---
@@ -674,9 +680,11 @@ def main(args=None):
     node = RobotBrain()
 
     try:
-        while rclpy.ok():
+        while rclpy.ok() and not node.halt_requested:
             node.update()
             rclpy.spin_once(node, timeout_sec=0.05)
+        if node.halt_requested:
+            node.publish_twist(Twist())
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
     except Exception:

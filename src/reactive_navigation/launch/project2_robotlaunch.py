@@ -6,6 +6,7 @@ from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
     IncludeLaunchDescription,
+    Shutdown,
     TimerAction,
 )
 from launch.conditions import IfCondition
@@ -70,6 +71,7 @@ def generate_launch_description():
             'use_sim_time': False,
             'undock_on_start': LaunchConfiguration('undock_on_start'),
         }],
+        on_exit=Shutdown(reason='robot_brain exited (bumper collision)'),
     )
 
     collision_detection = Node(
