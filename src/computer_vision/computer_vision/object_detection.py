@@ -1,6 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
+import numpy as np
 from cv_bridge import CvBridge
 from ultralytics import YOLO
 
@@ -41,7 +42,14 @@ class ObjectDetection(Node):
         annotated = results[0].plot()
 
         # Convert the annotated OpenCV image back into a ROS Image message
-        msg_out = self.bridge.cv2_to_imgmsg(annotated, 'bgr8')
+        msg_out = Image()
+        msg_out.header = msg.header
+        msg_out.height = annotated.shape[0]
+        msg_out.width = annotated.shape[1]
+        msg_out.encoding = 'bgr8'
+        msg_out.is_bigendian = 0
+        msg_out.step = annotated.shape[1] * 3
+        msg_out.data = np.ascontiguousarray(annotated, dtype=np.uint8).tobytes()
 
         # Publish the annotated image to the /yolo/visualization topic
         self.viz_pub.publish(msg_out)
@@ -50,7 +58,7 @@ class ObjectDetection(Node):
 def main(args=None):
     # Initialize ROS 2 and create the node
     rclpy.init(args=args)
-    node = YoloDetectorViz()
+    node = ObjectDetection()
 
     # Keep the node alive so it can keep processing incoming frames
     rclpy.spin(node)

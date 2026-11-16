@@ -50,7 +50,7 @@ class VisualizationDetection(Node):
 def main(args=None):
     # Initialize ROS 2 and create the node
     rclpy.init(args=args)
-    node = YoloDetectorViz()
+    node = VisualizationDetection()
 
     # Keep the node alive so it can keep processing incoming frames
     rclpy.spin(node)

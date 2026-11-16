@@ -55,14 +55,32 @@ ros2 run ros_gz_bridge parameter_bridge \
 
 
 
-KNOWN ISSUES (sometimes, doesn't impact functionality):
-On open: bridge crash occurs
-On close ruby3.2 stops unexpectedly error
-
-
-
-
 #PROJECT1 - Intelligent Robotics
 #Team - Trace Boggs, Luis Cardenas, Jackson Dunlap
 
 See architecture for setup (still needs to include mapping node)
+
+
+
+#FOR THE COMPUTER VISION PACKAGE:
+1) Setup a Venv
+2) Install YOLO and openCV
+
+fix for libraries in venv not building with colcon:
+export PYTHONPATH=$PYTHONPATH:/home/YOUR_USERNAME/CV_Test/venv/lib/python3.12/site-packages
+ros2 run computer_vision object_detection
+
+
+NOTE: MAKE SURE ROBOT IS ACTUALLY PUBLISHING TO oakd/rbg/image_raw, otherwise nothing wil work.
+
+DO NOT
+source venv, then source install/setup.bash. Then build. Then IN A SEPARATE TERMINAL, source install/setup.bash again, and colcon build --symlink-install.
+
+TRY:
+colcon build.
+then NEW TERINAL
+source install/setup.bash
+source venv/bin/activate
+source install/setup.bash
+export PYTHONPATH=$PYTHONPATH:/home/YOUR_USERNAME/CV_Test/venv/lib/python3.12/site-packages
+ros2 run computer_vision object_detection
