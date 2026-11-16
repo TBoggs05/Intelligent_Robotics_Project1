@@ -87,7 +87,7 @@ class State(Enum):
 
 ## Behavior Descriptions
 
-1. **Halt on Collision:** Publishes zero velocity when bumper sensors detect contact
+1. **Stop and Recover on Collision:** Publishes zero velocity while bumper contact is active without exiting the program. After contact clears for 0.5 seconds, turns 180 degrees using odometry before resuming navigation. Keyboard input can override recovery once contact clears.
 2. **Handle Keyboard Input:** Forwards user keyboard commands directly to TurtleBot 4
 3. **Escape Symmetric Obstacles:** Turns 180°±30° when encountering symmetric obstacles within 1 ft
 4. **Avoid Asymmetric Obstacles:** Reflexively turns away from the closest obstacle

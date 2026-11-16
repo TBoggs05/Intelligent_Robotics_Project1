@@ -2,7 +2,7 @@
 
 import math
 
-from action_msgs.msg import GoalStatus
+from action_msgs.msg import GoalStatus, GoalStatusArray
 from geometry_msgs.msg import Twist, TwistStamped
 from irobot_create_msgs.action import Undock
 from nav_msgs.msg import Odometry
@@ -10,8 +10,11 @@ import rclpy
 from rclpy.action import ActionClient
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
+from rclpy.qos import DurabilityPolicy, QoSProfile
+from rclpy.time import Time
 from reactive_navigation.robot_state import State
 from std_msgs.msg import Bool, Int32
+from tf2_ros import Buffer, TransformException, TransformListener
 
 
 class RobotBrain(Node):
@@ -43,7 +46,6 @@ class RobotBrain(Node):
         self.collision_recovery_active = False
         self.collision_recovery_last_yaw = None
         self.collision_recovery_progress = 0.0
-        self.halt_requested = False
 
         # Odometry orientation tracking for turn integration
         self.last_odom_yaw = None
@@ -61,6 +63,11 @@ class RobotBrain(Node):
         # Priority 5: Random turn inputs (from random turn node)
         self.random_turn_active = False
         self.random_turn_cmd = Twist()
+
+        # Nav2 velocity is the basal command while a goal is active.
+        self.navigation_active = False
+        self.navigation_twist = None
+        self.navigation_twist_stamp = None
 
         # --------------------------------------------------------------------
         # Startup Undock Sequence Configuration
@@ -91,6 +98,23 @@ class RobotBrain(Node):
         self.declare_parameter('obstacle_timeout_sec', 0.5)
         self.obstacle_timeout_sec = float(
             self.get_parameter('obstacle_timeout_sec').value
+        )
+        self.declare_parameter('navigation_timeout_sec', 0.5)
+        self.navigation_timeout_sec = float(
+            self.get_parameter('navigation_timeout_sec').value
+        )
+        self.declare_parameter('autonomous_enabled', True)
+        self.autonomous_enabled = bool(
+            self.get_parameter('autonomous_enabled').value
+        )
+        self.declare_parameter('require_localization', False)
+        self.require_localization = bool(
+            self.get_parameter('require_localization').value
+        )
+        self.tf_buffer = Buffer() if self.require_localization else None
+        self.tf_listener = (
+            TransformListener(self.tf_buffer, self)
+            if self.tf_buffer is not None else None
         )
 
         # --------------------------------------------------------------------
@@ -145,6 +169,21 @@ class RobotBrain(Node):
             Int32,
             '/obstacle_state',
             self.obstacle_state_callback,
+            10,
+        )
+
+        status_qos = QoSProfile(depth=10)
+        status_qos.durability = DurabilityPolicy.TRANSIENT_LOCAL
+        self.navigation_status_sub = self.create_subscription(
+            GoalStatusArray,
+            '/navigate_to_pose/_action/status',
+            self.navigation_status_callback,
+            status_qos,
+        )
+        self.navigation_twist_sub = self.create_subscription(
+            TwistStamped,
+            '/cmd_vel_nav',
+            self.navigation_twist_callback,
             10,
         )
 
@@ -377,6 +416,47 @@ class RobotBrain(Node):
         """
         self.random_turn_cmd = msg
 
+    def navigation_status_callback(self, msg: GoalStatusArray):
+        """Track whether Nav2 currently owns an accepted navigation goal."""
+        active_statuses = (
+            GoalStatus.STATUS_ACCEPTED,
+            GoalStatus.STATUS_EXECUTING,
+            GoalStatus.STATUS_CANCELING,
+        )
+        self.navigation_active = any(
+            status.status in active_statuses for status in msg.status_list
+        )
+
+    def navigation_twist_callback(self, msg: TwistStamped):
+        """Store Nav2's post-collision-monitor velocity recommendation."""
+        self.navigation_twist = msg.twist
+        self.navigation_twist_stamp = self.get_clock().now()
+
+    def handle_navigation(self):
+        """Return a fresh Nav2 command, or stop if the active goal goes stale."""
+        self.state = State.NAVIGATING
+        if self.navigation_twist is None or self.navigation_twist_stamp is None:
+            return Twist()
+        command_age = (
+            self.get_clock().now() - self.navigation_twist_stamp
+        ).nanoseconds / 1e9
+        if command_age > self.navigation_timeout_sec:
+            return Twist()
+        return self.navigation_twist
+
+    def localization_ready(self):
+        """Require a recent AMCL map-to-base transform before autonomous motion."""
+        if self.tf_buffer is None:
+            return True
+        try:
+            transform = self.tf_buffer.lookup_transform('map', 'base_link', Time())
+        except TransformException:
+            return False
+        age = (
+            self.get_clock().now() - Time.from_msg(transform.header.stamp)
+        ).nanoseconds / 1e9
+        return abs(age) <= 2.0
+
     def handle_random_turn(self):
         """
         Return random turn command if currently active.
@@ -410,12 +490,13 @@ class RobotBrain(Node):
 
         Priority order (highest to lowest):
             0. Absolute Prerequisite: Complete startup undocking sequence.
-            1. Halt if collision(s) detected by bumper(s).
+            1. Stop during bumper contact, then turn away once clear.
             2. Accept keyboard movement commands from a human user.
             3. Escape from (roughly) symmetric obstacles within 1ft.
             4. Avoid asymmetric obstacles within 1ft in front of the robot.
             5. Turn randomly (+-15 deg) after every 1ft of forward movement.
-            6. Drive forward (basal behavior).
+            6. Follow an active Nav2 goal.
+            7. Drive forward when reactive autonomy is enabled.
         """
         # --- PREREQUISITE: Initial Undock Sequence ---
         if not self.undock_finished:
@@ -424,16 +505,11 @@ class RobotBrain(Node):
 
         # --- PRIORITY 1: Bumper Collision Halt ---
         # Highest safety layer: if physical bumper contact is sensed,
-        # publish zero velocity and terminate the program.
+        # publish zero velocity until contact clears.
         collision_cmd = self.halt_on_collision()
         if collision_cmd is not None:
             self.publish_state()
             self.publish_twist(collision_cmd)
-            if not self.halt_requested:
-                self.get_logger().error(
-                    'Bumper collision detected; halting robot and exiting.'
-                )
-            self.halt_requested = True
             return
 
         # --- PRIORITY 2: Human Teleoperation ---
@@ -444,6 +520,12 @@ class RobotBrain(Node):
             self.collision_recovery_active = False
             self.publish_state()
             self.publish_twist(keyboard_cmd)
+            return
+
+        if self.require_localization and not self.localization_ready():
+            self.state = State.WAITING_FOR_LOCALIZATION
+            self.publish_state()
+            self.publish_twist(Twist())
             return
 
         # --- COLLISION RECOVERY: Post-Collision Turn ---
@@ -462,6 +544,13 @@ class RobotBrain(Node):
             self.publish_twist(obstacle_cmd)
             return
 
+        # --- NAV2 GOAL: follow its collision-filtered command ---
+        if self.navigation_active:
+            navigation_cmd = self.handle_navigation()
+            self.publish_state()
+            self.publish_twist(navigation_cmd)
+            return
+
         # --- PRIORITY 5: Random Turn Exploration ---
         # Triggers a +-15 deg turn every 1 ft of accumulated forward travel.
         random_cmd = self.handle_random_turn()
@@ -471,8 +560,14 @@ class RobotBrain(Node):
             self.publish_twist(random_cmd)
             return
 
-        # --- PRIORITY 6: Basal Drive Forward ---
-        # Lowest priority behavior: drives forward continuously at 0.25 m/s.
+        # --- BASAL REACTIVE DRIVE ---
+        if not self.autonomous_enabled:
+            self.state = State.DRIVE_FORWARD
+            self.publish_state()
+            self.publish_twist(Twist())
+            return
+
+        # Lowest priority reactive behavior: drive forward at 0.25 m/s.
         self.state = State.DRIVE_FORWARD
         self.publish_state()
 
@@ -680,11 +775,9 @@ def main(args=None):
     node = RobotBrain()
 
     try:
-        while rclpy.ok() and not node.halt_requested:
+        while rclpy.ok():
             node.update()
             rclpy.spin_once(node, timeout_sec=0.05)
-        if node.halt_requested:
-            node.publish_twist(Twist())
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
     except Exception:

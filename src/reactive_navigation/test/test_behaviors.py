@@ -2,11 +2,13 @@
 
 import math
 
+from action_msgs.msg import GoalStatus, GoalStatusArray
 from geometry_msgs.msg import Twist, TwistStamped
 from irobot_create_msgs.msg import HazardDetection, HazardDetectionVector
 from nav_msgs.msg import Odometry
 import pytest
 import rclpy
+from rclpy.duration import Duration
 from reactive_navigation.collision_detection import CollisionDetection
 from reactive_navigation.obstacle_detection_node import ObstacleDetectionNode
 from reactive_navigation.random_turn import RandomTurn
@@ -26,13 +28,15 @@ def rclpy_init_shutdown():
 
 
 def test_state_enum_priority_order():
-    """Verify that State enum values strictly reflect priority 1 to 6."""
+    """Keep legacy behavior states stable and append arbitration states."""
     assert State.COLLIDING.value == 1
     assert State.HUMAN_CONTROLLING.value == 2
     assert State.ESCAPE_SYMMETRIC.value == 3
     assert State.AVOID_ASYMMETRIC.value == 4
     assert State.TURN_RANDOMLY.value == 5
     assert State.DRIVE_FORWARD.value == 6
+    assert State.NAVIGATING.value == 7
+    assert State.WAITING_FOR_LOCALIZATION.value == 8
 
 
 def test_collision_detection_bump_only():
@@ -110,7 +114,192 @@ def test_robot_brain_priority_hierarchy():
         brain.collision_callback(bump_msg)
         brain.update()
         assert brain.state == State.COLLIDING
-        assert brain.halt_requested
+        assert brain.collision_recovery_pending
+    finally:
+        brain.destroy_node()
+
+
+def test_robot_brain_bumper_recovery():
+    """Stop during bumper contact, turn after clearance, then resume driving."""
+    brain = RobotBrain()
+    brain.undock_finished = True
+    commands = []
+    brain.publish_twist = commands.append
+    try:
+        odom = Odometry()
+        odom.pose.pose.orientation.w = 1.0
+        brain.odom_callback(odom)
+
+        bump_msg = Bool()
+        bump_msg.data = True
+        brain.collision_callback(bump_msg)
+        for update_index in range(2):
+            brain.update()
+            assert brain.state == State.COLLIDING
+            assert commands[-1] == Twist()
+            assert brain.collision_recovery_pending
+            assert not brain.collision_recovery_active
+
+        bump_msg.data = False
+        brain.collision_callback(bump_msg)
+        brain.update()
+        assert commands[-1] == Twist()
+        assert not brain.collision_recovery_active
+
+        brain.bump_clear_since = brain.get_clock().now() - Duration(seconds=0.6)
+        brain.update()
+        assert brain.state == State.TURN_RANDOMLY
+        assert brain.collision_recovery_active
+        assert commands[-1].linear.x == 0.0
+        assert commands[-1].angular.z == 0.6
+
+        for yaw in (math.pi / 2.0, math.pi):
+            odom.pose.pose.orientation.z = math.sin(yaw / 2.0)
+            odom.pose.pose.orientation.w = math.cos(yaw / 2.0)
+            brain.odom_callback(odom)
+
+        assert not brain.collision_recovery_pending
+        assert not brain.collision_recovery_active
+        brain.update()
+        assert brain.state == State.DRIVE_FORWARD
+        assert commands[-1].linear.x == 0.25
+        assert commands[-1].angular.z == 0.0
+    finally:
+        brain.destroy_node()
+
+
+def test_nav2_goal_uses_nav_command_and_suppresses_roaming():
+    """Follow the active Nav2 velocity instead of the random roam command."""
+    brain = RobotBrain()
+    brain.undock_finished = True
+    commands = []
+    brain.publish_twist = commands.append
+    try:
+        brain.random_turn_active = True
+        brain.random_turn_cmd.angular.z = 0.6
+        brain.navigation_active = True
+        brain.navigation_twist = Twist()
+        brain.navigation_twist.linear.x = 0.12
+        brain.navigation_twist_stamp = brain.get_clock().now()
+
+        brain.update()
+
+        assert brain.state == State.NAVIGATING
+        assert commands[-1].linear.x == 0.12
+        assert commands[-1].angular.z == 0.0
+
+        bump_msg = Bool()
+        bump_msg.data = True
+        brain.collision_callback(bump_msg)
+        brain.update()
+        assert brain.state == State.COLLIDING
+        assert commands[-1] == Twist()
+    finally:
+        brain.destroy_node()
+
+
+def test_reactive_obstacle_overrides_nav2_goal():
+    """Use the reactive avoidance turn while Nav2 continues to own the goal."""
+    brain = RobotBrain()
+    brain.undock_finished = True
+    commands = []
+    brain.publish_twist = commands.append
+    try:
+        brain.navigation_active = True
+        brain.navigation_twist = Twist()
+        brain.navigation_twist.linear.x = 0.15
+        brain.navigation_twist_stamp = brain.get_clock().now()
+        brain.obstacle_behavior_state = State.AVOID_ASYMMETRIC
+        brain.obstacle_twist = Twist()
+        brain.obstacle_twist.angular.z = 0.8
+        brain.obstacle_twist_stamp = brain.get_clock().now()
+        brain.obstacle_state_stamp = brain.get_clock().now()
+
+        brain.update()
+
+        assert brain.state == State.AVOID_ASYMMETRIC
+        assert commands[-1].angular.z == 0.8
+        assert commands[-1].linear.x == 0.0
+    finally:
+        brain.destroy_node()
+
+
+def test_teleop_overrides_nav2_and_reactive_modes():
+    """Keep keyboard control at higher priority than automatic behaviors."""
+    brain = RobotBrain()
+    brain.undock_finished = True
+    commands = []
+    brain.publish_twist = commands.append
+    try:
+        brain.navigation_active = True
+        brain.navigation_twist = Twist()
+        brain.navigation_twist.linear.x = 0.15
+        brain.navigation_twist_stamp = brain.get_clock().now()
+        key = TwistStamped()
+        key.twist.angular.z = 0.4
+        brain.keyboard_callback(key)
+
+        brain.update()
+
+        assert brain.state == State.HUMAN_CONTROLLING
+        assert commands[-1].angular.z == 0.4
+    finally:
+        brain.destroy_node()
+
+
+def test_navigation_status_tracks_active_goal():
+    """Switch to Nav2 control only while an action goal is active."""
+    brain = RobotBrain()
+    try:
+        status = GoalStatusArray()
+        item = GoalStatus()
+        item.status = GoalStatus.STATUS_EXECUTING
+        status.status_list.append(item)
+        brain.navigation_status_callback(status)
+        assert brain.navigation_active
+
+        item.status = GoalStatus.STATUS_SUCCEEDED
+        brain.navigation_status_callback(status)
+        assert not brain.navigation_active
+    finally:
+        brain.destroy_node()
+
+
+def test_nav2_command_timeout_stops_robot():
+    """Stop instead of roaming if an active goal loses its command stream."""
+    brain = RobotBrain()
+    brain.undock_finished = True
+    brain.autonomous_enabled = False
+    commands = []
+    brain.publish_twist = commands.append
+    try:
+        brain.navigation_active = True
+        brain.navigation_twist = Twist()
+        brain.navigation_twist.linear.x = 0.15
+        brain.navigation_twist_stamp = (
+            brain.get_clock().now() - Duration(seconds=1.0)
+        )
+
+        brain.update()
+
+        assert brain.state == State.NAVIGATING
+        assert commands[-1] == Twist()
+    finally:
+        brain.destroy_node()
+
+
+def test_map_mode_waits_for_localization_before_roaming():
+    """Hold autonomous movement until AMCL supplies a fresh map transform."""
+    brain = RobotBrain()
+    brain.undock_finished = True
+    brain.require_localization = True
+    brain.localization_ready = lambda: False
+    commands = []
+    brain.publish_twist = commands.append
+    try:
+        brain.update()
+        assert brain.state == State.WAITING_FOR_LOCALIZATION
+        assert commands[-1] == Twist()
     finally:
         brain.destroy_node()
 

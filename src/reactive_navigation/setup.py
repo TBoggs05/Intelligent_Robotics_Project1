@@ -38,6 +38,7 @@ setup(
             'obstacle_detection_node = reactive_navigation.obstacle_detection_node:main',
             'collision_detection = reactive_navigation.collision_detection:main',
             'scan_frame_relay = reactive_navigation.scan_frame_relay:main',
+            'tour_guide_node = reactive_navigation.tour_guide_node:main',
         ],
     },
 )

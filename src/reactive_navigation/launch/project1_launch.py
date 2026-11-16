@@ -163,7 +163,7 @@ def generate_launch_description():
             'use_sim_time': True,
             'undock_on_start': LaunchConfiguration('undock_on_start'),
         }],
-        on_exit=Shutdown(reason='robot_brain exited (bumper collision)'),
+        on_exit=Shutdown(reason='robot_brain exited'),
     )
 
     collision_detection = Node(
