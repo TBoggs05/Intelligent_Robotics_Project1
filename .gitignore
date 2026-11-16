@@ -1,0 +1,51 @@
+# Virtual environments
+venv/
+.venv/
+# ROS 2 / Colcon build artifacts
+build/
+install/
+log/
+
+# Colcon ignore markers
+COLCON_IGNORE
+AMENT_IGNORE
+
+# C++ / CMake compiled files
+*.o
+*.so
+*.a
+*.dylib
+*.exe
+*.out
+*.app
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Python cache & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# ROS bag files (usually too large for Git)
+*.bag
+*.db3
+*.mcap
+
+# Editors & IDEs
+.vscode/
+.idea/
+*.swp
+*~
+.#*
+.clangd/
+.cache/
+
+# OS metadata
+.DS_Store
+Thumbs.db

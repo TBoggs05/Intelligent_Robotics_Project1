@@ -1,0 +1,96 @@
+import rclpy
+from rclpy.executors import ExternalShutdownException
+from rclpy.node import Node
+from rclpy.qos import qos_profile_sensor_data
+from sensor_msgs.msg import LaserScan
+
+
+class ScanFrameRelay(Node):
+    """
+    Relays LaserScan messages with corrected frame_id.
+
+    Re-stamps incoming LaserScan headers with the canonical URDF link
+    frame_id (default: 'rplidar_link') and republishes to output topics
+    using sensor data QoS.
+    """
+
+    def __init__(self):
+        """Initialize the ScanFrameRelay node, parameters, and publishers."""
+        super().__init__('scan_frame_relay')
+
+        # Node parameters
+        self.declare_parameter('input_topic', '/scan_raw')
+        self.declare_parameter('output_topic', '/scan_mapping')
+        self.declare_parameter('frame_id', 'rplidar_link')
+
+        self.frame_id = self.get_parameter('frame_id').value
+        self.output_topic = self.get_parameter('output_topic').value
+        self.first_scan_logged = False
+
+        # Sensor data QoS publisher for mapping
+        self.publisher = self.create_publisher(
+            LaserScan,
+            self.output_topic,
+            qos_profile_sensor_data,
+        )
+
+        # Standard /scan publisher for navigation and obstacles
+        self.scan_publisher = self.create_publisher(
+            LaserScan,
+            '/scan',
+            qos_profile_sensor_data,
+        )
+
+        # Subscription to raw bridged scan
+        input_topic = self.get_parameter('input_topic').value
+        self.create_subscription(
+            LaserScan,
+            input_topic,
+            self.scan_callback,
+            qos_profile_sensor_data,
+        )
+        if input_topic != '/scan_raw':
+            self.create_subscription(
+                LaserScan,
+                '/scan_raw',
+                self.scan_callback,
+                qos_profile_sensor_data,
+            )
+
+    def scan_callback(self, msg: LaserScan):
+        """
+        Update frame_id and republish to output_topic and /scan.
+
+        :param msg: sensor_msgs/LaserScan message with raw frame_id.
+        """
+        if not self.first_scan_logged:
+            self.get_logger().info(
+                f'Received LiDAR scan on {msg.header.frame_id}; '
+                f'republishing on {self.frame_id} -> '
+                f'{self.output_topic} and /scan.'
+            )
+            self.first_scan_logged = True
+
+        msg.header.frame_id = self.frame_id
+        self.publisher.publish(msg)
+        self.scan_publisher.publish(msg)
+
+
+def main(args=None):
+    """Run scan frame relay node."""
+    rclpy.init(args=args)
+    node = ScanFrameRelay()
+    try:
+        rclpy.spin(node)
+    except (KeyboardInterrupt, ExternalShutdownException):
+        pass
+    except Exception:
+        pass
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()
