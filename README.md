@@ -77,10 +77,17 @@ DO NOT
 source venv, then source install/setup.bash. Then build. Then IN A SEPARATE TERMINAL, source install/setup.bash again, and colcon build --symlink-install.
 
 TRY:
+SSH into robot
+robot-setup.sh in a new terminal
 colcon build.
 then NEW TERINAL
+robot-setup.sh in this terminal
 source install/setup.bash
 source venv/bin/activate
 source install/setup.bash
-export PYTHONPATH=$PYTHONPATH:/home/YOUR_USERNAME/CV_Test/venv/lib/python3.12/site-packages
+export PYTHONPATH=$PYTHONPATH:/home/bogg0033/CV_Test/venv/lib/python3.12/site-packages
 ros2 run computer_vision object_detection
+now open ANOTHER terminal
+robot-setup.sh in this terminal
+ros2 run rqt_image_view rqt_image_view
+select the Yolo visualization topic.
