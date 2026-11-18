@@ -26,6 +26,12 @@ class ObjectDetection(Node):
             self.process_image,
             10
         )
+        # TODO: Create publisher to /robot_visual_context and make robot_brain subscribe
+        # When a UI node/webapp sends NLP stmt to brain, it fetches visual context from here to combine
+        # with known topic info to create the robot_context file. That is then combined with an immutable
+        # global context, and RAG will be performed on that. Will require a custom messsage template to send 
+        # a dynamic type list to robot brain.
+        self.results = None
 
         # Publisher for the annotated (YOLO-processed) images
         self.viz_pub = self.create_publisher(Image, '/yolo/visualization', 10)
@@ -38,10 +44,10 @@ class ObjectDetection(Node):
         cv_image = self.bridge.imgmsg_to_cv2(msg, 'bgr8')
 
         # Run YOLO on the frame to detect objects
-        results = self.model(cv_image, verbose=False)
+        self.results = self.model(cv_image, verbose=False)
 
         # Draw bounding boxes and labels on the frame
-        annotated = results[0].plot()
+        annotated = self.results[0].plot()
 
         # Convert the annotated OpenCV image back into a ROS Image message
         msg_out = Image()
@@ -55,16 +61,30 @@ class ObjectDetection(Node):
 
         # Publish the annotated image to the /yolo/visualization topic
         self.viz_pub.publish(msg_out)
-
+        #self.get_fov()
+        #Get a list of objects in the fov and their confidence scores.
+    def get_fov(self):
+        for result in self.results:
+            for box in result.boxes:
+                id = int(box.cls[0])
+                label = result.names[id]
+                score = float(box.conf[0])
+                #top left corner is (0,0). Camera dim is 250x250 pixels
+                x_center, y_center, width, height = box.xywh[0].tolist()
+                print("_")
+                print(f"{label}: {score:.2f}")
+                print("Object location " f"{x_center}", f"{y_center}")
+                print("Object dimensions " f"{width}", f"{height}")
+                print("_")
+        
 
 def main(args=None):
     # Initialize ROS 2 and create the node
     rclpy.init(args=args)
     node = ObjectDetection()
-
+    
     # Keep the node alive so it can keep processing incoming frames
     rclpy.spin(node)
-
     # Clean shutdown when you stop the node
     node.destroy_node()
     rclpy.shutdown()

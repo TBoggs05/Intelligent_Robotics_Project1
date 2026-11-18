@@ -20,7 +20,6 @@ exec bash
 
 #In a 3rd terminal, run the robot-setup, source venv and setup.bash, export python overload and run
 gnome-terminal --tab -- bash -c '
-set -e
 read -rp "(3RD) enter anything once the last terminal finishes its job: " check
 GEN_COMMANDS=$(/bin/bash robot-setup.sh "${1}" <<< "${1}" | grep -v "Run the following in order:")
 
