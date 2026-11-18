@@ -63,20 +63,10 @@ See architecture for setup (still needs to include mapping node)
 
 
 #FOR THE COMPUTER VISION PACKAGE:
-1) Setup a Venv
+1) Setup a Venv in the parent to the workspace (if its ros_ws/ros_ws/src, put in the first ros_ws.)
 2) Install YOLO and openCV
+3) Run the setup_robot.sh, which does the following:
 
-fix for libraries in venv not building with colcon:
-export PYTHONPATH=$PYTHONPATH:/home/YOUR_USERNAME/CV_Test/venv/lib/python3.12/site-packages
-ros2 run computer_vision object_detection
-
-
-NOTE: MAKE SURE ROBOT IS ACTUALLY PUBLISHING TO oakd/rbg/image_raw, otherwise nothing wil work.
-
-DO NOT
-source venv, then source install/setup.bash. Then build. Then IN A SEPARATE TERMINAL, source install/setup.bash again, and colcon build --symlink-install.
-
-TRY:
 SSH into robot
 robot-setup.sh in a new terminal
 colcon build.

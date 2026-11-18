@@ -1,3 +1,5 @@
+#baseline code was gathered by following this tutorial:
+#https://medium.com/@aneja0512/integrating-yolov8-with-the-turtlebot4-camera-for-real-time-object-detection-using-ros-2-jazzy-d7082e2ba0a6
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
