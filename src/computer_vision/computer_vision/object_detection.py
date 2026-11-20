@@ -1,8 +1,12 @@
-#baseline code was gathered by following this tutorial:
-#https://medium.com/@aneja0512/integrating-yolov8-with-the-turtlebot4-camera-for-real-time-object-detection-using-ros-2-jazzy-d7082e2ba0a6
+# Baseline code was gathered by following this tutorial:
+# https://medium.com/@aneja0512/integrating-yolov8-with-the-turtlebot4-camera-for-real-time-object-detection-using-ros-2-jazzy-d7082e2ba0a6
+
+import json
+
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
+from std_msgs.msg import String
 import numpy as np
 from cv_bridge import CvBridge
 from ultralytics import YOLO
@@ -11,45 +15,49 @@ from ultralytics import YOLO
 class ObjectDetection(Node):
     def __init__(self):
         super().__init__('yolo_detector_viz')
-        
-        # Create a bridge to convert ROS Image messages into OpenCV images
-        self.bridge = CvBridge()
-        
-        # Load the YOLOv8 small model. 
-        # This model gives a good balance between accuracy and real-time speed.
-        self.model = YOLO("yolov8s.pt")
 
-        # Subscribe to the TurtleBot4 RGB camera feed
+        # Convert ROS Image messages into OpenCV images.
+        self.bridge = CvBridge()
+
+        # Load YOLOv8 small model.
+        self.model = YOLO('yolov8s.pt')
+        self.confidence_threshold = 0.65
+
+        # Subscribe to the TurtleBot4 RGB camera feed.
         self.image_sub = self.create_subscription(
             Image,
             '/oakd/rgb/preview/image_raw',
             self.process_image,
             10
         )
-        # TODO: Create publisher to /robot_visual_context and make robot_brain subscribe
-        # When a UI node/webapp sends NLP stmt to brain, it fetches visual context from here to combine
-        # with known topic info to create the robot_context file. That is then combined with an immutable
-        # global context, and RAG will be performed on that. Will require a custom messsage template to send 
-        # a dynamic type list to robot brain.
+
+        # Publish annotated camera images.
+        self.viz_pub = self.create_publisher(
+            Image, '/yolo/visualization', 10
+        )
+
+        # Publish object detections as a JSON string. A separate context
+        # manager can subscribe to this topic and interpret the data.
+        self.context_pub = self.create_publisher(
+            String, '/robot_visual_context', 10
+        )
+
         self.results = None
-
-        # Publisher for the annotated (YOLO-processed) images
-        self.viz_pub = self.create_publisher(Image, '/yolo/visualization', 10)
-
-        # Let the terminal know that the node has started successfully
-        self.get_logger().info("YOLO detector with visualization started")
+        self.get_logger().info('YOLO detector with visualization and detections started')
 
     def process_image(self, msg):
-        # Convert the incoming ROS Image message to an OpenCV BGR frame
+        # Convert incoming ROS image to OpenCV BGR frame.
         cv_image = self.bridge.imgmsg_to_cv2(msg, 'bgr8')
 
-        # Run YOLO on the frame to detect objects
-        self.results = self.model(cv_image, verbose=False)
+        # Run YOLO. The 65% cutoff applies to visualization and published data.
+        self.results = self.model(
+            cv_image, conf=self.confidence_threshold, verbose=False
+        )
 
-        # Draw bounding boxes and labels on the frame
+        # Draw bounding boxes and labels on the frame.
         annotated = self.results[0].plot()
 
-        # Convert the annotated OpenCV image back into a ROS Image message
+        # Convert annotated OpenCV image back into a ROS Image message.
         msg_out = Image()
         msg_out.header = msg.header
         msg_out.height = annotated.shape[0]
@@ -59,35 +67,51 @@ class ObjectDetection(Node):
         msg_out.step = annotated.shape[1] * 3
         msg_out.data = np.ascontiguousarray(annotated, dtype=np.uint8).tobytes()
 
-        # Publish the annotated image to the /yolo/visualization topic
         self.viz_pub.publish(msg_out)
-        #self.get_fov()
-        #Get a list of objects in the fov and their confidence scores.
+
+        # Extract and publish detection data for the context manager.
+        self.get_fov()
+
     def get_fov(self):
+        detections = []
+
         for result in self.results:
             for box in result.boxes:
-                id = int(box.cls[0])
-                label = result.names[id]
-                score = float(box.conf[0])
-                #top left corner is (0,0). Camera dim is 250x250 pixels
+                class_id = int(box.cls[0])
+                label = result.names[class_id]
+                confidence = float(box.conf[0])
+
+                if confidence < self.confidence_threshold:
+                    continue
+
+                # Bounding box center and size, measured in image pixels.
                 x_center, y_center, width, height = box.xywh[0].tolist()
-                print("_")
-                print(f"{label}: {score:.2f}")
-                print("Object location " f"{x_center}", f"{y_center}")
-                print("Object dimensions " f"{width}", f"{height}")
-                print("_")
-        
+
+                detections.append({
+                    'object': label,
+                    'confidence': confidence,
+                    'x': x_center,
+                    'y': y_center,
+                    'width': width,
+                    'height': height
+                })
+
+        # Serialize the detection list as JSON and publish via ROS 2.
+        # This does NOT write a .json file to disk.
+        message = String()
+        message.data = json.dumps(detections)
+        self.context_pub.publish(message)
+
 
 def main(args=None):
-    # Initialize ROS 2 and create the node
     rclpy.init(args=args)
     node = ObjectDetection()
-    
-    # Keep the node alive so it can keep processing incoming frames
-    rclpy.spin(node)
-    # Clean shutdown when you stop the node
-    node.destroy_node()
-    rclpy.shutdown()
+
+    try:
+        rclpy.spin(node)
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
 
 
 if __name__ == '__main__':
