@@ -20,7 +20,7 @@ class ContextManager(Node):
         # Publish interpreted context
         self.context_pub = self.create_publisher(
             String,
-            '/robot_context',
+            '/interpreted_visual_context',
             10
         )
 
